@@ -1,0 +1,231 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0b1220;
+  color: #e5e7eb;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.app {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+header p {
+  color: #94a3b8;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 16px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+.canvas-panel {
+  overflow: auto;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.canvas-panel > .empty {
+  padding: 100px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+aside {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+aside h2 {
+  margin-top: 0;
+}
+
+aside p {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.bay-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #334155;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+.view-switch {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.view-switch button {
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+.view-switch button.active {
+  background: #2563eb;
+  border-color: #60a5fa;
+}
+
+.occupancy-dashboard {
+  margin-top: 24px;
+}
+
+.recording-label {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.occupancy-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0 24px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.stat-card strong {
+  font-size: 32px;
+}
+
+.stat-card span {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.stat-card.available strong {
+  color: #22c55e;
+}
+
+.stat-card.occupied strong {
+  color: #ef4444;
+}
+
+.stat-card.unknown strong {
+  color: #f59e0b;
+}
+
+.occupancy-error {
+  color: #f87171;
+}
+
+@media (max-width: 700px) {
+  .occupancy-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .view-switch {
+    flex-wrap: wrap;
+  }
+}
+
+
+.occupancy-state {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.occupancy-state.empty {
+  color: #22c55e;
+}
+
+.occupancy-state.occupied {
+  color: #ef4444;
+}
+
+.occupancy-state.unknown {
+  color: #f59e0b;
+}
+
+aside {
+  max-height: 760px;
+  overflow-y: auto;
+}
+
+.bay-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  height: auto;
+}
+
+.bay-item > span {
+  display: inline;
+  flex: 0 0 auto;
+  line-height: 20px;
+}
+
+.occupancy-bay-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.occupancy-bay-list .bay-item {
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 12px 0;
+  margin: 0;
+  align-items: center;
+  justify-content: space-between;
+}
