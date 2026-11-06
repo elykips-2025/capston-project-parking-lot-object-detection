@@ -3,10 +3,15 @@ import { useEffect,useRef, useState } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text } from "react-konva";
 import "./App.css";
 import type Konva from "konva";
+
 import {
   fetchSiteOccupancy,
+  fetchOccupancyHistory,
   type OccupancyResponse,
+  type OccupancyHistoryResponse,
 } from "./api/occupancy";
+
+import OccupancyHistoryChart from "./components/OccupancyHistoryChart";
 
 type Point = { x: number; y: number };
 
@@ -38,10 +43,16 @@ export default function App() {
   const [viewport, setViewport] = useState({ x: 0, y: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [viewMode, setViewMode] = useState<"editor" | "dashboard">("editor");
+  const [viewMode, setViewMode] = useState<"editor" | "dashboard">("dashboard");
   const [occupancy, setOccupancy] = useState<OccupancyResponse | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
+
+  const [occupancyHistory, setOccupancyHistory] =
+  useState<OccupancyHistoryResponse | null>(null);
+
+const [historyLoading, setHistoryLoading] = useState(false);
+const [historyError, setHistoryError] = useState<string | null>(null);
 
   const activeImage = viewMode === "dashboard" ? dashboardImage : image;
   
@@ -118,6 +129,39 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 
     return () => controller.abort();
   }, [viewMode]);
+
+  useEffect(() => {
+  if (viewMode !== "dashboard") return;
+
+  const controller = new AbortController();
+
+  setHistoryLoading(true);
+  setHistoryError(null);
+
+  fetchOccupancyHistory(
+    DEMO_ORGANISATION_ID,
+    DEMO_SITE_ID,
+    DEMO_RECORDING_ID,
+    controller.signal,
+  )
+    .then(setOccupancyHistory)
+    .catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+
+      setHistoryError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load occupancy history",
+      );
+    })
+    .finally(() => {
+      if (!controller.signal.aborted) {
+        setHistoryLoading(false);
+      }
+    });
+
+  return () => controller.abort();
+}, [viewMode]);
 
   function uploadImage(file?: File) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -329,7 +373,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   </div>
 </header>
 
-{viewMode === "dashboard" && (
+{viewMode === "dashboard" && (<>
   <section className="occupancy-dashboard">
     {occupancyLoading && <p>Loading occupancy data...</p>}
 
@@ -369,7 +413,51 @@ const height = activeImage ? activeImage.height * baseScale : 600;
         </div>
       </>
     )}
+
+    
   </section>
+
+  {/* <section className="occupancy-history">
+      <h2>Historical Occupancy</h2>
+
+      <p className="recording-label">
+        Occupancy changes throughout the recorded CCTV footage
+      </p>
+
+      {historyLoading && (
+        <p>Loading historical occupancy...</p>
+      )}
+
+      {historyError && (
+        <p role="alert" className="occupancy-error">
+          {historyError}
+        </p>
+      )}
+
+      {occupancyHistory && !historyLoading && !historyError && (<>
+        <div className="history-summary">
+          <p>
+            Recorded samples:{" "}
+            <strong>{occupancyHistory.history.length}</strong>
+          </p>
+
+          <p>
+            Recording duration:{" "}
+            <strong>
+              {occupancyHistory.history.length > 0
+                ? occupancyHistory.history[
+                    occupancyHistory.history.length - 1
+                  ].timestamp_seconds.toFixed(3)
+                : "0.000"}
+              s
+            </strong>
+          </p>
+        </div>
+        <OccupancyHistoryChart history={occupancyHistory.history} /></>
+      )}
+    </section> */}
+  </>
+  
 )}
 
 

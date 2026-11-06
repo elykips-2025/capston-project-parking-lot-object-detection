@@ -112,3 +112,92 @@ def get_site_occupancy(
             for bay, observation in rows
         ],
     }
+
+
+@router.get("/history")
+def get_site_occupancy_history(
+    organisation_id: uuid.UUID,
+    site_id: uuid.UUID,
+    recording_id: uuid.UUID,
+    db: DbSession,
+):
+    site = db.scalar(
+        select(ParkingSite).where(
+            ParkingSite.id == site_id,
+            ParkingSite.organisation_id == organisation_id,
+        )
+    )
+
+    if site is None:
+        raise HTTPException(404, "Parking site not found")
+
+    recording = db.scalar(
+        select(VideoRecording)
+        .join(Camera, Camera.id == VideoRecording.camera_id)
+        .where(
+            VideoRecording.id == recording_id,
+            Camera.site_id == site_id,
+        )
+    )
+
+    if recording is None:
+        raise HTTPException(
+            404,
+            "Recording not found for this parking site",
+        )
+
+    rows = db.execute(
+        select(
+            OccupancyObservation.timestamp_seconds,
+            OccupancyObservation.temporal_state,
+            func.count(OccupancyObservation.id),
+        )
+        .join(
+            ParkingBay,
+            ParkingBay.id == OccupancyObservation.bay_id,
+        )
+        .where(
+            OccupancyObservation.recording_id == recording_id,
+            ParkingBay.site_id == site_id,
+            ParkingBay.camera_id == recording.camera_id,
+        )
+        .group_by(
+            OccupancyObservation.timestamp_seconds,
+            OccupancyObservation.temporal_state,
+        )
+        .order_by(OccupancyObservation.timestamp_seconds)
+    ).all()
+
+    if not rows:
+        raise HTTPException(
+            404,
+            "No occupancy observations for this recording",
+        )
+
+    history = {}
+
+    for timestamp, state, count in rows:
+        if timestamp not in history:
+            history[timestamp] = {
+                "timestamp_seconds": timestamp,
+                "available": 0,
+                "occupied": 0,
+                "unknown": 0,
+                "total": 0,
+            }
+
+        if state == "empty":
+            history[timestamp]["available"] += count
+        elif state == "occupied":
+            history[timestamp]["occupied"] += count
+        else:
+            history[timestamp]["unknown"] += count
+
+        history[timestamp]["total"] += count
+
+    return {
+        "site_id": site_id,
+        "recording_id": recording_id,
+        "source": "recorded_video",
+        "history": list(history.values()),
+    }

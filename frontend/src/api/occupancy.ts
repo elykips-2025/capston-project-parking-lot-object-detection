@@ -62,3 +62,65 @@ export async function fetchSiteOccupancy(
 
   return data;
 }
+
+
+export type OccupancyHistoryPoint = {
+  timestamp_seconds: number;
+  available: number;
+  occupied: number;
+  unknown: number;
+  total: number;
+};
+
+export type OccupancyHistoryResponse = {
+  site_id: string;
+  recording_id: string;
+  source: "recorded_video";
+  history: OccupancyHistoryPoint[];
+};
+
+export async function fetchOccupancyHistory(
+  organisationId: string,
+  siteId: string,
+  recordingId: string,
+  signal?: AbortSignal,
+): Promise<OccupancyHistoryResponse> {
+  const url = new URL(
+    `${API_BASE_URL}/organisations/${organisationId}/sites/${siteId}/occupancy/history`,
+    window.location.origin,
+  );
+
+  url.searchParams.set("recording_id", recordingId);
+
+  const response = await fetch(url, { signal });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch occupancy history: HTTP ${response.status}`,
+    );
+  }
+
+  const data: OccupancyHistoryResponse = await response.json();
+
+  if (
+    data.source !== "recorded_video" ||
+    !Array.isArray(data.history) ||
+    data.history.some(
+      (point) =>
+        !Number.isFinite(point.timestamp_seconds) ||
+        !Number.isInteger(point.total) ||
+        !Number.isInteger(point.available) ||
+        !Number.isInteger(point.occupied) ||
+        !Number.isInteger(point.unknown) ||
+        point.total < 0 ||
+        point.available < 0 ||
+        point.occupied < 0 ||
+        point.unknown < 0 ||
+        point.available + point.occupied + point.unknown !== point.total,
+    )
+  ) {
+    throw new Error("Invalid occupancy history API response");
+  }
+
+  return data;
+}
