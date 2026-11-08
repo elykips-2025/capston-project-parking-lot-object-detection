@@ -82,19 +82,44 @@ Each history sample reports 27 bays, with available + occupied + unknown = total
 
 ## 5. Testing approach and gaps
 
-### Automated tests — pending evidence
+### Automated tests — executed
 
-- Unit: polygon validation, aggregation counts, temporal transitions, confidence thresholds.
-- API: valid history/latest requests; invalid IDs; missing observations; recording/site mismatches.
-- Integration: migrations, persistence, image endpoint, API response schema.
-- End-to-end: upload a new recording, map bays, run analysis, view latest states and history, refresh dashboard.
-- Regression: editor/dashboard image separation, polygon alignment, pan-mode behaviour.
+The backend automated test suite was executed successfully
+on 8 November 2026.
 
-**Do not claim these tests have passed until they have been implemented and executed.** Record test command, environment, date, result and report/screenshot for each.
+- Command: `python -m pytest tests/ -v`
+- Result: 15 tests passed, 17 subtests passed, zero failures.
+- Coverage includes occupancy thresholds, conservative
+  availability decisions, temporal voting and state isolation.
 
-### Model evaluation — pending
+This result does not establish comprehensive API, integration
+or end-to-end test coverage. Those areas require separate
+verification.
 
-Prepare manually labelled ground-truth samples and report: occupied/empty precision, recall and F1; confusion matrix; unknown/abstention rate; lighting and occlusion failure cases; processing throughput and latency; model versions and confidence thresholds. Document annotation methodology and train/test separation. **No validated model accuracy figure is available yet.**
+### Model evaluation — completed initial evaluation
+
+A manually reviewed evaluation dataset contains 135 observations
+across 27 parking bays and five timestamps from one recording.
+
+| Metric | Raw classifier | Temporal classifier |
+|---|---:|---:|
+| Correct | 102 | 80 |
+| Incorrect | 0 | 0 |
+| Unknown | 33 | 55 |
+| Coverage | 75.56% | 59.26% |
+| Selective accuracy | 100.00% | 100.00% |
+| False vacancies | 0 | 0 |
+
+Excluding the initial timestamp, raw and temporal classification
+coverage were 76.85% and 74.07%, respectively.
+
+The evaluation does not establish generalisation across different
+parking sites, weather conditions, camera angles or occupancy
+transitions.
+
+Detailed methodology, confusion matrices and limitations are
+documented in
+[`backend/reports/evaluation/model-evaluation.md`](backend/reports/evaluation/model-evaluation.md).
 
 ### Manual test register
 
@@ -104,7 +129,7 @@ Prepare manually labelled ground-truth samples and report: occupied/empty precis
 | M02 | Historical API returns 29 timestamp summaries | Observed | Pass (manual) |
 | M03 | Pan mode controls dragging | User confirmed | Pass (manual) |
 | M04 | New recording through complete UI workflow | Not yet demonstrated | Pending |
-| M05 | Accuracy measured against ground truth | Not yet conducted | Pending |
+| M05 | Occupancy evaluated against manually reviewed ground truth | 135 observations evaluated | Pass (sample-specific) |
 
 ## 6. Deployment options and cost implications
 
@@ -132,7 +157,7 @@ Document actual user stories, sprint tasks, completed work and relevant commits.
 
 1. Historical timestamp selection updating per-bay state.
 2. End-to-end workflow for a different uploaded recording without hardcoded demo IDs.
-3. Ground-truth model evaluation and automated tests.
+3. Expand evaluation across independent recordings and complete outstanding API/integration tests.
 4. Deployment, documented setup and demonstration recording.
 
 ## 9. Required submission items
@@ -166,7 +191,7 @@ ParkSight combines **AI as part of the delivered software** with **AI assistance
 |---|---|---|
 | ChatGPT (AI-assisted engineering) | Helped decompose requirements into incremental implementation steps, review FastAPI/React changes, troubleshoot startup and TypeScript errors, and draft documentation/test plans | Development conversation and terminal outputs; changes were applied and checked by the developer |
 | YOLO (application model) | Detect vehicles in recorded CCTV frames | Demonstration inference output; quantitative detection metrics still pending |
-| MobileNetV3-based classifier (application model) | Infer parking-bay occupancy with an explicit unknown state | Persisted observations and dashboard outputs; accuracy against ground truth still pending |
+| MobileNetV3-based classifier (application model) | Infer parking-bay occupancy with an explicit unknown state | Persisted observations and dashboard outputs; initial evaluation completed; see model-evaluation.md |
 
 ### Human oversight and responsible use
 

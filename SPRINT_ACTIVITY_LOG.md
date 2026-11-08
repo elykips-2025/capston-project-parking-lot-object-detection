@@ -16,7 +16,7 @@
 | Sprint 3 — Occupancy inference | Persist and expose bay-level classification | MobileNetV3-based classification, temporal states, 783 observations, latest-occupancy API | Implemented in demo |
 | Sprint 4 — Dashboard and visualisation | Present recorded occupancy clearly | React/Konva dashboard, reference-image endpoint, summary cards, bay overlays | Implemented and manually checked |
 | Sprint 5 — Historical reporting | Expose and chart occupancy over time | History API, typed frontend client, SVG chart, 29 timestamp samples | Chart implemented; playback pending |
-| Sprint 6 — Complete MVP workflow and quality | Make new recordings reproducible and evaluate results | End-to-end upload-to-analysis UI, timestamp playback, automated tests, ground-truth evaluation | Planned / incomplete |
+| Sprint 6 — Complete MVP workflow and quality | Make new recordings reproducible and evaluate results | End-to-end upload-to-analysis UI, timestamp playback, automated tests, ground-truth evaluation | Partially completed; evaluation and targeted unit tests executed |
 | Sprint 7 — Deployment and submission | Package and demonstrate the capstone | Deployment, documentation, agile evidence, demonstration recording | Planned / incomplete |
 
 **Sprint numbering is a documentation proposal.** Do not attach dates or claim sprint ceremonies until supported by the project's actual records.
@@ -62,7 +62,7 @@
 | Persist observations by bay and timestamp | 783 observations = 27 bays × 29 timestamps | Done (observed) |
 | Implement latest occupancy API | Endpoint returns 27 bay states and summary | Done (observed) |
 | Check count consistency | 8 available + 13 occupied + 6 unknown = 27 at 28.028s | Done (manual/API) |
-| Measure classification accuracy against labels | Precision/recall/F1 and unknown rate | Pending |
+| Evaluate classification against reviewed labels | 135 observations; confusion matrices, coverage and selective accuracy documented | Done (initial evaluation) |
 
 **Retrospective:** The unknown state is a deliberate abstention mechanism. Initial timestamps classified all 27 bays as unknown while temporal evidence accumulated; these should not be reported as actual occupied bays.
 
@@ -106,8 +106,8 @@
 |---|---|---|
 | As an operator, I can select a historical sample | Selecting a timestamp updates summary, polygon colours and bay list consistently | To do |
 | As an operator, I can upload a new recording and process it from the UI | Upload, map, trigger analysis and view results without hardcoded demo identifiers or manual API calls | To do |
-| As a researcher, I can evaluate the classifier | Ground-truth labels, confusion matrix, precision, recall, F1, unknown rate, documented test split | To do |
-| As a maintainer, I can trust the key API behaviour | Automated tests for site/recording validation, counts, empty data and history | To do |
+| As a researcher, I can evaluate the classifier | Ground-truth labels, confusion matrices, coverage, selective accuracy and limitations | Done (initial evaluation; broader validation pending) |
+| As a maintainer, I can trust the key API behaviour | Automated tests for site/recording validation, counts, empty data and history | Partial: 15 targeted tests passed; API/integration coverage pending |
 | As a reviewer, I can reproduce the demo | Documented setup, sample data and deterministic walkthrough | To do |
 
 **Definition of done:** Code works in the application, tests/evidence are attached, limitations are documented and the task is linked to a real commit or pull request.
@@ -155,6 +155,6 @@ The following AI assistance is supported by the development discussion; allocati
 | Backend and APIs | Incremental endpoint design and debugging suggestions | Inspected FastAPI modules; tested HTTP responses |
 | Frontend and mapping | Suggested React state separation and Konva rendering changes | TypeScript builds and manual dashboard/editor checks |
 | Historical reporting | Suggested aggregation API, typed client and SVG chart | Inspected JSON for 29 timestamps; reviewed chart screenshot |
-| Testing and documentation | Helped structure test plans, architecture rationale and submission files | Outstanding tests explicitly identified as pending |
+| Testing and documentation | Helped structure test plans, architecture rationale and submission files | 15 targeted tests passed; initial ground-truth evaluation completed; additional tests pending |
 
 **AI tooling evidence to add:** links to relevant commits and task-board cards; redacted prompt examples; recorded test results. AI-assisted implementation must not be represented as independently tested or automatically verified. See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md#ai-tooling-used-during-development).
