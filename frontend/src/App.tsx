@@ -47,6 +47,8 @@ export default function App() {
   const [occupancy, setOccupancy] = useState<OccupancyResponse | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyDialogRef = useRef<HTMLDialogElement>(null);
 
   const [occupancyHistory, setOccupancyHistory] =
   useState<OccupancyHistoryResponse | null>(null);
@@ -370,8 +372,85 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     >
       Occupancy Dashboard
     </button>
+
+   {viewMode === "dashboard" && (
+  <button
+    type="button"
+    onClick={() => {
+      setHistoryOpen(true);
+      historyDialogRef.current?.showModal();
+    }}
+  >
+    View Occupancy History
+  </button>
+)}
+
   </div>
 </header>
+
+<dialog
+  ref={historyDialogRef}
+  className="history-modal"
+  aria-labelledby="history-modal-title"
+  onClose={() => setHistoryOpen(false)}
+  onClick={(event) => {
+    if (event.target === event.currentTarget) {
+      event.currentTarget.close();
+    }
+  }}
+>
+  <div className="history-modal-content">
+    <div className="history-modal-header">
+      <h2 id="history-modal-title">Historical Occupancy</h2>
+
+      <button
+        type="button"
+        aria-label="Close historical occupancy"
+        onClick={() => historyDialogRef.current?.close()}
+      >
+        ✕
+      </button>
+    </div>
+
+    <p className="recording-label">
+      Occupancy changes throughout the recorded CCTV footage
+    </p>
+
+    {historyLoading && <p>Loading historical occupancy...</p>}
+
+    {historyError && (
+      <p role="alert" className="occupancy-error">
+        {historyError}
+      </p>
+    )}
+
+    {occupancyHistory && !historyLoading && !historyError && (
+      <>
+        <div className="history-summary">
+          <p>
+            Recorded samples:{" "}
+            <strong>{occupancyHistory.history.length}</strong>
+          </p>
+
+          <p>
+            Recording duration:{" "}
+            <strong>
+              {occupancyHistory.history.length > 0
+                ? occupancyHistory.history[
+                    occupancyHistory.history.length - 1
+                  ].timestamp_seconds.toFixed(3)
+                : "0.000"}
+              s
+            </strong>
+          </p>
+        </div>
+
+        <OccupancyHistoryChart history={occupancyHistory.history} />
+      </>
+    )}
+  </div>
+</dialog>
+
 
 {viewMode === "dashboard" && (<>
   <section className="occupancy-dashboard">
@@ -417,45 +496,6 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     
   </section>
 
-  {/* <section className="occupancy-history">
-      <h2>Historical Occupancy</h2>
-
-      <p className="recording-label">
-        Occupancy changes throughout the recorded CCTV footage
-      </p>
-
-      {historyLoading && (
-        <p>Loading historical occupancy...</p>
-      )}
-
-      {historyError && (
-        <p role="alert" className="occupancy-error">
-          {historyError}
-        </p>
-      )}
-
-      {occupancyHistory && !historyLoading && !historyError && (<>
-        <div className="history-summary">
-          <p>
-            Recorded samples:{" "}
-            <strong>{occupancyHistory.history.length}</strong>
-          </p>
-
-          <p>
-            Recording duration:{" "}
-            <strong>
-              {occupancyHistory.history.length > 0
-                ? occupancyHistory.history[
-                    occupancyHistory.history.length - 1
-                  ].timestamp_seconds.toFixed(3)
-                : "0.000"}
-              s
-            </strong>
-          </p>
-        </div>
-        <OccupancyHistoryChart history={occupancyHistory.history} /></>
-      )}
-    </section> */}
   </>
   
 )}
