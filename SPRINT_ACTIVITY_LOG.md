@@ -1,27 +1,23 @@
-# ParkSight AI — Sprint Activity Breakdown
+# ParkSight AI — Three-Sprint Activity Plan and Evidence
 
-**Project:** Quantic MSSE Capstone — ParkSight AI  
-**Repository:** https://github.com/elykips-2025/capston-project-parking-lot-object-detection  
-**Scope:** Single-site, recorded-CCTV occupancy analysis MVP  
-**Document status:** Retrospective activity reconstruction, prepared 6 November 2026
+**Project:** Quantic MSSE Capstone — ParkSight AI
+**Repository:** https://github.com/elykips-2025/capston-project-parking-lot-object-detection
+**Scope:** Individual, single-site, recorded-CCTV occupancy analysis MVP
+**Document status:** Retrospective workstream consolidation and forward plan; updated 8 November 2026
 
-> **Evidence note:** The workstreams below are reconstructed from development discussions, API outputs, build logs and screenshots. They are **proposed sprint groupings**, not a claim that formally scheduled sprints, sprint reviews, or a specific team cadence already occurred. Actual sprint dates, task ownership, estimates, commit IDs and board links must be reconciled with Git history and the agile board before submission. A completed feature is not necessarily a completed, tested user story.
+> **Evidence integrity:** These three sprint groupings organise work already performed and remaining work. They do not establish that three formal Scrum sprints, sprint planning meetings, reviews or demonstrations occurred. Dates and ceremonies must be supported by actual records. Individual-submission eligibility remains subject to Quantic confirmation.
 
 ## Sprint overview
 
-| Sprint / workstream | Objective | Key deliverables | Observed status |
+| Proposed sprint | Objective | Current evidence | Status |
 |---|---|---|---|
-| Sprint 1 — Foundation and data model | Establish backend and recording storage | FastAPI, PostgreSQL/Alembic, organisation/site/camera/recording models, upload path | Implemented in demo |
-| Sprint 2 — Computer vision and mapping | Establish vehicle detection and mapped parking bays | YOLO detection, reference frame, 27 bay polygons, editor | Implemented in demo |
-| Sprint 3 — Occupancy inference | Persist and expose bay-level classification | MobileNetV3-based classification, temporal states, 783 observations, latest-occupancy API | Implemented in demo |
-| Sprint 4 — Dashboard and visualisation | Present recorded occupancy clearly | React/Konva dashboard, reference-image endpoint, summary cards, bay overlays | Implemented and manually checked |
-| Sprint 5 — Historical reporting | Expose and chart occupancy over time | History API, typed frontend client, SVG chart, 29 timestamp samples | Chart implemented; playback pending |
-| Sprint 6 — Complete MVP workflow and quality | Make new recordings reproducible and evaluate results | End-to-end upload-to-analysis UI, timestamp playback, automated tests, ground-truth evaluation | Partially completed; evaluation and targeted unit tests executed |
-| Sprint 7 — Deployment and submission | Package and demonstrate the capstone | Deployment, documentation, agile evidence, demonstration recording | Planned / incomplete |
+| 1 — Foundation and Computer Vision | Establish backend, recording ingestion, detection and bay mapping | Backend/API, PostgreSQL, YOLO, 27 mapped bays | Implementation observed; full testing incomplete |
+| 2 — Occupancy Intelligence and Dashboard | Classify occupancy, persist results and visualise history | 783 observations, dashboard, 29 history samples | Core implementation observed; timestamp selection pending |
+| 3 — Validation and Delivery | Validate results, complete workflow, deploy and demonstrate | 135 reviewed labels, evaluation report, 15 targeted tests | In progress; integration testing and deployment pending |
 
-**Sprint numbering is a documentation proposal.** Do not attach dates or claim sprint ceremonies until supported by the project's actual records.
+## Sprint 1 — Foundation and Computer Vision
 
-## Sprint 1 — Foundation and data model
+### Backend foundation and data model
 
 **Goal:** Establish a reproducible backend and relational model for a parking site, its cameras and video recordings.
 
@@ -36,7 +32,7 @@
 
 **Retrospective:** Database availability and a port conflict were resolved during setup. These are useful impediment examples; attach actual logs if discussed in a sprint review.
 
-## Sprint 2 — Computer vision and parking-bay mapping
+### Computer vision and parking-bay mapping
 
 **Goal:** Detect vehicles in recorded footage and define the parking spaces that need classification.
 
@@ -51,7 +47,9 @@
 
 **Retrospective:** Explicit image-coordinate polygons were chosen to accommodate perspective rather than assume a uniform parking grid.
 
-## Sprint 3 — Occupancy inference and persistence
+## Sprint 2 — Occupancy Intelligence and Dashboard
+
+### Occupancy inference and persistence
 
 **Goal:** Produce and store a classified occupancy state for each mapped bay across sampled video timestamps.
 
@@ -66,7 +64,7 @@
 
 **Retrospective:** The unknown state is a deliberate abstention mechanism. Initial timestamps classified all 27 bays as unknown while temporal evidence accumulated; these should not be reported as actual occupied bays.
 
-## Sprint 4 — Dashboard and reference-image delivery
+### Dashboard and reference-image delivery
 
 **Goal:** Make occupancy results understandable without manually examining JSON or image-processing output.
 
@@ -83,7 +81,7 @@
 
 **Retrospective:** A shared `.empty` CSS selector unexpectedly enlarged sidebar rows; scoping the selector resolved the defect. A canvas drag flag was also inverted and corrected.
 
-## Sprint 5 — Historical occupancy reporting
+### Historical occupancy reporting
 
 **Goal:** Show how classified occupancy changed over the recorded footage.
 
@@ -98,7 +96,9 @@
 
 **Retrospective:** Aggregation occurs in PostgreSQL, reducing the amount of observation data transferred for the time-series chart. The chart is based on **recorded** video, not live camera telemetry.
 
-## Sprint 6 — Finish and validate the single-site MVP (planned)
+## Sprint 3 — Validation and Delivery
+
+### Complete and validate the single-site MVP
 
 **Goal:** Demonstrate a repeatable workflow for a new recording and provide defensible evaluation evidence.
 
@@ -112,7 +112,7 @@
 
 **Definition of done:** Code works in the application, tests/evidence are attached, limitations are documented and the task is linked to a real commit or pull request.
 
-## Sprint 7 — Deployment and capstone submission (planned)
+### Deployment and capstone submission
 
 | Proposed activity | Evidence required | Status |
 |---|---|---|
@@ -134,15 +134,11 @@ These are **future commercialisation ideas**, not incomplete MVP stories.
 
 ## Agile evidence register — fill from actual records
 
-| Sprint | Start/end dates | Board or milestone URL | Relevant issues / stories | Commit or PR evidence | Review / retrospective notes |
+| Proposed sprint | Actual dates | Board / milestone URL | Issues / stories | Git evidence | Review evidence |
 |---|---|---|---|---|---|
-| 1 | [VERIFY] | [ADD] | [ADD] | [ADD] | [ADD] |
-| 2 | [VERIFY] | [ADD] | [ADD] | [ADD] | [ADD] |
-| 3 | [VERIFY] | [ADD] | [ADD] | [ADD] | [ADD] |
-| 4 | [VERIFY] | [ADD] | [ADD] | [ADD] | [ADD] |
-| 5 | [VERIFY] | [ADD] | [ADD] | [ADD] | [ADD] |
-| 6 | [PLAN] | [ADD] | [ADD] | [ADD WHEN DONE] | [ADD] |
-| 7 | [PLAN] | [ADD] | [ADD] | [ADD WHEN DONE] | [ADD] |
+| 1 | [VERIFY] | [ADD] | [ADD] | `dba3cde`, `668eb14` | [VERIFY] |
+| 2 | [VERIFY] | [ADD] | [ADD] | `668eb14`, `e251c50` | [VERIFY] |
+| 3 | [VERIFY / PLAN] | [ADD] | [ADD] | `b31b492`; further commits pending | [VERIFY / PLAN] |
 
 **Submission integrity:** This document supports the agile task board; it does **not replace** the handbook's requirement to provide an accessible board with user stories and task completion evidence. Do not invent historical sprint dates, velocity, hours, meeting notes, or completed tests.
 
