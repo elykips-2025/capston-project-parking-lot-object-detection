@@ -3,7 +3,7 @@ import uuid
 from collections import Counter
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,10 @@ def get_site_occupancy(
     site_id: uuid.UUID,
     recording_id: uuid.UUID,
     db: DbSession,
+    timestamp_seconds: Annotated[
+        float | None,
+        Query(ge=0, allow_inf_nan=False),
+    ] = None,
 ):
     site = db.scalar(
         select(ParkingSite).where(
@@ -56,12 +60,15 @@ def get_site_occupancy(
             "Recording not found for this parking site",
         )
 
-    latest_timestamp = db.scalar(
-        select(func.max(OccupancyObservation.timestamp_seconds))
-        .where(OccupancyObservation.recording_id == recording_id)
-    )
+    selected_timestamp = timestamp_seconds
 
-    if latest_timestamp is None:
+    if selected_timestamp is None:
+        selected_timestamp = db.scalar(
+            select(func.max(OccupancyObservation.timestamp_seconds))
+            .where(OccupancyObservation.recording_id == recording_id)
+        )
+
+    if selected_timestamp is None:
         raise HTTPException(
             404,
             "No occupancy observations for this recording",
@@ -77,10 +84,16 @@ def get_site_occupancy(
             ParkingBay.site_id == site_id,
             ParkingBay.camera_id == recording.camera_id,
             OccupancyObservation.recording_id == recording_id,
-            OccupancyObservation.timestamp_seconds == latest_timestamp,
+            OccupancyObservation.timestamp_seconds == selected_timestamp,
         )
         .order_by(ParkingBay.bay_code)
     ).all()
+
+    if not rows:
+        raise HTTPException(
+            404,
+            "No occupancy observations at the requested timestamp",
+        )
 
     counts = Counter(
         observation.temporal_state
@@ -91,7 +104,7 @@ def get_site_occupancy(
         "site_id": site_id,
         "recording_id": recording_id,
         "source": "recorded_video",
-        "timestamp_seconds": latest_timestamp,
+        "timestamp_seconds": selected_timestamp,
         "summary": {
             "total": len(rows),
             "available": counts["empty"],

@@ -2,6 +2,8 @@ import type { OccupancyHistoryPoint } from "../api/occupancy";
 
 type Props = {
   history: OccupancyHistoryPoint[];
+  selectedTimestamp: number | null;
+  onSelectTimestamp: (timestamp: number) => void;
 };
 
 const SERIES = [
@@ -10,7 +12,11 @@ const SERIES = [
   { key: "unknown", label: "Unknown", color: "#f59e0b" },
 ] as const;
 
-export default function OccupancyHistoryChart({ history }: Props) {
+export default function OccupancyHistoryChart({
+  history,
+  selectedTimestamp,
+  onSelectTimestamp,
+}: Props) {
   if (history.length === 0) {
     return <p>No historical occupancy data available.</p>;
   }
@@ -109,7 +115,64 @@ export default function OccupancyHistoryChart({ history }: Props) {
             strokeLinecap="round"
           />
         ))}
+
+        {selectedTimestamp !== null && (
+          <line
+            x1={x(selectedTimestamp)}
+            y1={margin.top}
+            x2={x(selectedTimestamp)}
+            y2={margin.top + plotHeight}
+            stroke="#e2e8f0"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            pointerEvents="none"
+          />
+        )}
+
+        {history.map((point) => {
+          const selected = point.timestamp_seconds === selectedTimestamp;
+
+          return (
+            <g
+              key={point.timestamp_seconds}
+              role="button"
+              tabIndex={0}
+              aria-label={`Select occupancy at ${point.timestamp_seconds.toFixed(3)} seconds`}
+              aria-pressed={selected}
+              onClick={() => onSelectTimestamp(point.timestamp_seconds)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectTimestamp(point.timestamp_seconds);
+                }
+              }}
+              style={{ cursor: "pointer", outline: "none" }}
+            >
+              <circle
+                cx={x(point.timestamp_seconds)}
+                cy={y(point.occupied)}
+                r={12}
+                fill="transparent"
+              />
+              <circle
+                cx={x(point.timestamp_seconds)}
+                cy={y(point.occupied)}
+                r={selected ? 6 : 3.5}
+                fill={selected ? "#ffffff" : "#ef4444"}
+                stroke={selected ? "#ef4444" : "none"}
+                strokeWidth={2}
+              />
+              <title>
+                {`${point.timestamp_seconds.toFixed(3)}s — ${point.available} available, ${point.occupied} occupied, ${point.unknown} unknown`}
+              </title>
+            </g>
+          );
+        })}
       </svg>
+
+      <p>
+        Select a marker to inspect occupancy at that recorded timestamp.
+      </p>
     </div>
   );
 }

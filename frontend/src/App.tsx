@@ -45,9 +45,9 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState<"editor" | "dashboard">("dashboard");
   const [occupancy, setOccupancy] = useState<OccupancyResponse | null>(null);
+  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const historyDialogRef = useRef<HTMLDialogElement>(null);
 
   const [occupancyHistory, setOccupancyHistory] =
@@ -112,8 +112,13 @@ const height = activeImage ? activeImage.height * baseScale : 600;
       DEMO_SITE_ID,
       DEMO_RECORDING_ID,
       controller.signal,
+      selectedTimestamp,
     )
-      .then(setOccupancy)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setOccupancy(data);
+        }
+      })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
 
@@ -130,7 +135,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
       });
 
     return () => controller.abort();
-  }, [viewMode]);
+  }, [viewMode, selectedTimestamp]);
 
   useEffect(() => {
   if (viewMode !== "dashboard") return;
@@ -377,7 +382,6 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   <button
     type="button"
     onClick={() => {
-      setHistoryOpen(true);
       historyDialogRef.current?.showModal();
     }}
   >
@@ -392,7 +396,6 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   ref={historyDialogRef}
   className="history-modal"
   aria-labelledby="history-modal-title"
-  onClose={() => setHistoryOpen(false)}
   onClick={(event) => {
     if (event.target === event.currentTarget) {
       event.currentTarget.close();
@@ -445,7 +448,14 @@ const height = activeImage ? activeImage.height * baseScale : 600;
           </p>
         </div>
 
-        <OccupancyHistoryChart history={occupancyHistory.history} />
+        <OccupancyHistoryChart
+          history={occupancyHistory.history}
+          selectedTimestamp={selectedTimestamp}
+          onSelectTimestamp={(timestamp) => {
+            setSelectedTimestamp(timestamp);
+            historyDialogRef.current?.close();
+          }}
+        />
       </>
     )}
   </div>

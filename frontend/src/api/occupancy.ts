@@ -34,6 +34,7 @@ export async function fetchSiteOccupancy(
   siteId: string,
   recordingId: string,
   signal?: AbortSignal,
+  timestampSeconds?: number | null,
 ): Promise<OccupancyResponse> {
   const url = new URL(
     `${API_BASE_URL}/organisations/${organisationId}/sites/${siteId}/occupancy`,
@@ -41,6 +42,14 @@ export async function fetchSiteOccupancy(
   );
 
   url.searchParams.set("recording_id", recordingId);
+
+  if (timestampSeconds != null) {
+    if (!Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
+      throw new Error("Invalid occupancy timestamp");
+    }
+
+    url.searchParams.set("timestamp_seconds", String(timestampSeconds));
+  }
 
   const response = await fetch(url, { signal });
 
