@@ -21,3 +21,11 @@ uploads/
 /backend/datasets/
 
 /backend/runs/
+
+# macOS metadata
+.DS_Store
+
+# Local development backups
+*.bak
+*.pre-*.bak
+*.before-recording-integration
