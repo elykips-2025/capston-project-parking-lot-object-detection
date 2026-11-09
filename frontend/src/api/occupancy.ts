@@ -1,3 +1,5 @@
+import { apiFetch } from "./client";
+
 
 export type OccupancyState = "empty" | "occupied" | "unknown";
 
@@ -26,8 +28,7 @@ export type OccupancyResponse = {
   bays: OccupancyBay[];
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+const API_BASE_URL = "";
 
 export async function fetchSiteOccupancy(
   organisationId: string,
@@ -51,7 +52,7 @@ export async function fetchSiteOccupancy(
     url.searchParams.set("timestamp_seconds", String(timestampSeconds));
   }
 
-  const response = await fetch(url, { signal });
+  const response = await apiFetch(url.pathname + url.search, { signal });
 
   if (!response.ok) {
     throw new Error(
@@ -101,7 +102,7 @@ export async function fetchOccupancyHistory(
 
   url.searchParams.set("recording_id", recordingId);
 
-  const response = await fetch(url, { signal });
+  const response = await apiFetch(url.pathname + url.search, { signal });
 
   if (!response.ok) {
     throw new Error(

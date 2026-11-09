@@ -1,0 +1,69 @@
+name: parksight
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: parksight
+      POSTGRES_USER: parksight
+      POSTGRES_PASSWORD: ${PARKSIGHT_DB_PASSWORD:?Set PARKSIGHT_DB_PASSWORD}
+    volumes:
+      - parksight_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parksight -d parksight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  api:
+    image: parksight-api:local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://parksight:${PARKSIGHT_DB_PASSWORD}@db:5432/parksight
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+    ports:
+      - "127.0.0.1:8100:8000"
+    volumes:
+      - ./backend/storage:/app/storage
+      - ./backend/runs/occupancy/mobilenetv3_pilot/best.pt:/app/runs/occupancy/mobilenetv3_pilot/best.pt:ro
+      - ./backend/datasets/video-mapping/reference-frame.jpg:/app/datasets/video-mapping/reference-frame.jpg:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  worker:
+    image: parksight-api:local
+    restart: unless-stopped
+    command:
+      - python
+      - -m
+      - worker.recording_worker
+      - --poll-interval
+      - "2"
+    environment:
+      DATABASE_URL: postgresql+psycopg://parksight:${PARKSIGHT_DB_PASSWORD}@db:5432/parksight
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+      OMP_NUM_THREADS: "4"
+    volumes:
+      - ./backend/storage:/app/storage
+      - ./backend/runs/occupancy/mobilenetv3_pilot/best.pt:/app/runs/occupancy/mobilenetv3_pilot/best.pt:ro
+      - ./backend/datasets/video-mapping/reference-frame.jpg:/app/datasets/video-mapping/reference-frame.jpg:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    cpus: 4
+    mem_limit: 8g
+    networks:
+      - internal
+
+volumes:
+  parksight_postgres:
+
+networks:
+  internal:
+    driver: bridge

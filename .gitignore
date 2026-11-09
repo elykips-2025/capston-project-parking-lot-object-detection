@@ -29,3 +29,8 @@ uploads/
 *.bak
 *.pre-*.bak
 *.before-recording-integration
+
+.env.production
+
+# Local PostgreSQL backups
+/backups/

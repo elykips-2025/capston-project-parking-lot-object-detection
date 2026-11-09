@@ -1,0 +1,65 @@
+:root {
+  /* Brand */
+  --ps-primary: #2563eb;
+  --ps-primary-hover: #1d4ed8;
+  --ps-primary-soft: #eff6ff;
+
+  /* Surfaces */
+  --ps-background: #f6f8fb;
+  --ps-surface: #ffffff;
+  --ps-surface-muted: #f8fafc;
+
+  /* Typography */
+  --ps-text: #0f172a;
+  --ps-text-secondary: #475569;
+  --ps-text-muted: #64748b;
+
+  /* Borders */
+  --ps-border: #e2e8f0;
+  --ps-border-strong: #cbd5e1;
+
+  /* Occupancy states */
+  --ps-available: #15803d;
+  --ps-occupied: #dc2626;
+  --ps-unknown: #b45309;
+
+  /* Geometry */
+  --ps-radius-sm: 8px;
+  --ps-radius-md: 12px;
+  --ps-radius-lg: 16px;
+
+  /* Shadows */
+  --ps-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
+  --ps-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
+
+  /* Typography */
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--ps-background);
+  color: var(--ps-text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}

@@ -1,8 +1,14 @@
 
 import { useEffect,useRef, useState } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text } from "react-konva";
+import { apiFetch } from "./api/client";
 import "./App.css";
+import "./DashboardTheme.css";
 import type Konva from "konva";
+import {
+  ChartNoAxesCombined,
+  Maximize2,
+} from "lucide-react";
 
 import {
   fetchSiteOccupancy,
@@ -79,31 +85,72 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   const scale = baseScale * zoom;
 
   useEffect(() => {
-  if (viewMode !== "dashboard") return;
+    if (viewMode !== "dashboard") return;
 
-  const img = new window.Image();
-  let cancelled = false;
+    const controller = new AbortController();
+    const img = new window.Image();
 
-  img.onload = () => {
-    if (!cancelled) {
-      setDashboardImage(img);
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    async function loadReferenceImage() {
+      try {
+        const response = await apiFetch(
+          `/organisations/${DEMO_ORGANISATION_ID}` +
+            `/sites/${DEMO_SITE_ID}` +
+            `/cameras/${DEMO_CAMERA_ID}/reference-image`,
+          { signal: controller.signal },
+        );
+
+        const blob = await response.blob();
+
+        if (cancelled) return;
+
+        if (!blob.type.startsWith("image/")) {
+          throw new Error("Invalid reference-image response");
+        }
+
+        objectUrl = URL.createObjectURL(blob);
+
+        img.onload = () => {
+          if (!cancelled) {
+            setDashboardImage(img);
+          }
+        };
+
+        img.onerror = () => {
+          if (!cancelled) {
+            console.error("Unable to decode dashboard reference image");
+          }
+        };
+
+        img.src = objectUrl;
+      } catch (error: unknown) {
+        if (cancelled || controller.signal.aborted) return;
+
+        console.error(
+          "Unable to load dashboard reference image",
+          error,
+        );
+      }
     }
-  };
 
-  img.onerror = () => {
-    if (!cancelled) {
-      console.error("Unable to load dashboard reference image");
-    }
-  };
+    void loadReferenceImage();
 
-  img.src = "/api/v1/reference-images/demo";
+    return () => {
+      cancelled = true;
+      controller.abort();
 
-  return () => {
-    cancelled = true;
-    img.onload = null;
-    img.onerror = null;
-  };
-}, [viewMode]);
+      img.onload = null;
+      img.onerror = null;
+
+      img.removeAttribute("src");
+
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [viewMode]);
 
 
     useEffect(() => {
@@ -195,6 +242,10 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     img.src = url;
   }
 
+  function fitToView() {
+  setZoom(1);
+  setViewport({ x: 0, y: 0 });
+}
 
   async function importMapping(file?: File) {
     if (!file) return;
@@ -384,6 +435,9 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     >
       Occupancy Dashboard
     </button>
+    <button type="button" onClick={fitToView}>
+  Fit to View
+</button>
 
    {viewMode === "dashboard" && (
   <button
@@ -470,17 +524,6 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 
 
 {viewMode === "dashboard" && (<>
-  <RecordingProcessor
-    organisationId={DEMO_ORGANISATION_ID}
-    siteId={DEMO_SITE_ID}
-    cameraId={DEMO_CAMERA_ID}
-    onCompleted={(recordingId) => {
-      setSelectedTimestamp(null);
-      setOccupancy(null);
-      setOccupancyHistory(null);
-      setActiveRecordingId(recordingId);
-    }}
-  />
   <section className="occupancy-dashboard">
     {occupancyLoading && <p>Loading occupancy data...</p>}
 
@@ -878,6 +921,75 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 </aside>
 
       </section>
+
+      {viewMode === "dashboard" && (
+        <section
+          className="dashboard-bottom-grid"
+          aria-label="Occupancy analytics and recording processing"
+        >
+          <div className="dashboard-history-card">
+            <div className="dashboard-history-header">
+              <div>
+                <h2 className="card-title-with-icon">
+  <ChartNoAxesCombined size={20} strokeWidth={1.8} />
+  Occupancy History
+</h2>
+                <p>Parking availability throughout the recording</p>
+              </div>
+              <button
+                type="button"
+                className="history-expand-button"
+                onClick={() => historyDialogRef.current?.showModal()}
+              >
+                <Maximize2 size={16} strokeWidth={1.8} />
+Expand
+              </button>
+            </div>
+
+            {historyLoading && (
+              <p role="status">Loading occupancy history...</p>
+            )}
+
+            {historyError && (
+              <p role="alert" className="occupancy-error">
+                {historyError}
+              </p>
+            )}
+
+            {!historyLoading &&
+              !historyError &&
+              occupancyHistory &&
+              occupancyHistory.history.length > 0 && (
+                <OccupancyHistoryChart
+                  history={occupancyHistory.history}
+                  selectedTimestamp={selectedTimestamp}
+                  onSelectTimestamp={(timestamp) => {
+                    setSelectedTimestamp(timestamp);
+                  }}
+                />
+              )}
+
+            {!historyLoading &&
+              !historyError &&
+              (!occupancyHistory ||
+                occupancyHistory.history.length === 0) && (
+                <p>No occupancy history available yet.</p>
+              )}
+          </div>
+
+          <RecordingProcessor
+            organisationId={DEMO_ORGANISATION_ID}
+            siteId={DEMO_SITE_ID}
+            cameraId={DEMO_CAMERA_ID}
+            onCompleted={(recordingId) => {
+              setSelectedTimestamp(null);
+              setOccupancy(null);
+              setOccupancyHistory(null);
+              setActiveRecordingId(recordingId);
+            }}
+          />
+        </section>
+      )}
     </main>
   );
 }

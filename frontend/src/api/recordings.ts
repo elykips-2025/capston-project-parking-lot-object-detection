@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+import { apiFetch } from "./client";
+
 
 export type RecordingStatus =
   | "uploaded"
@@ -23,7 +24,7 @@ function recordingUrl(
   cameraId: string,
   recordingId?: string,
 ) {
-  const base = `${API_BASE}/organisations/${organisationId}/sites/${siteId}/cameras/${cameraId}/recordings`;
+  const base = `/organisations/${organisationId}/sites/${siteId}/cameras/${cameraId}/recordings`;
   return recordingId ? `${base}/${recordingId}` : base;
 }
 
@@ -49,7 +50,7 @@ export async function uploadRecording(
   const form = new FormData();
   form.append("file", file);
 
-  const response = await fetch(
+  const response = await apiFetch(
     recordingUrl(organisationId, siteId, cameraId),
     { method: "POST", body: form },
   );
@@ -64,7 +65,7 @@ export async function fetchRecordingStatus(
   recordingId: string,
   signal?: AbortSignal,
 ): Promise<Recording> {
-  const response = await fetch(
+  const response = await apiFetch(
     recordingUrl(organisationId, siteId, cameraId, recordingId),
     { signal, cache: "no-store" },
   );

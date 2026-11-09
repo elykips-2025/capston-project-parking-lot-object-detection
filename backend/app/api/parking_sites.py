@@ -7,6 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
+from app.core.authorisation import (
+    RequireOrganisationAdmin,
+    RequireOrganisationViewer,
+)
 from app.models.organisation import Organisation
 from app.models.parking_site import ParkingSite
 from app.schemas.parking_site import (
@@ -29,6 +33,7 @@ DbSession = Annotated[Session, Depends(get_db)]
     status_code=status.HTTP_201_CREATED,
 )
 def create_parking_site(
+    membership: RequireOrganisationAdmin,
     organisation_id: uuid.UUID,
     payload: ParkingSiteCreate,
     db: DbSession,
@@ -60,6 +65,7 @@ def create_parking_site(
     response_model=list[ParkingSiteResponse],
 )
 def list_parking_sites(
+    membership: RequireOrganisationViewer,
     organisation_id: uuid.UUID,
     db: DbSession,
 ):
@@ -85,6 +91,7 @@ def list_parking_sites(
     response_model=ParkingSiteResponse,
 )
 def get_parking_site(
+    membership: RequireOrganisationViewer,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     db: DbSession,
@@ -111,6 +118,7 @@ def get_parking_site(
     response_model=ParkingSiteResponse,
 )
 def update_parking_site(
+    membership: RequireOrganisationAdmin,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     payload: ParkingSiteUpdate,

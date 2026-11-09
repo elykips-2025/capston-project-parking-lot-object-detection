@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
+from app.core.authorisation import RequireOrganisationViewer
 from app.models import (
     Camera,
     OccupancyObservation,
@@ -26,6 +27,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 @router.get("")
 def get_site_occupancy(
+    membership: RequireOrganisationViewer,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     recording_id: uuid.UUID,
@@ -129,6 +131,7 @@ def get_site_occupancy(
 
 @router.get("/history")
 def get_site_occupancy_history(
+    membership: RequireOrganisationViewer,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     recording_id: uuid.UUID,

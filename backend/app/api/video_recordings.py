@@ -11,6 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
+from app.core.authorisation import (
+    RequireOrganisationAdmin,
+    RequireOrganisationViewer,
+)
 from app.models.camera import Camera
 from app.models.parking_site import ParkingSite
 from app.models.video_recording import VideoRecording
@@ -34,6 +38,7 @@ CHUNK_SIZE = 1024 * 1024
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def upload_recording(
+    membership: RequireOrganisationAdmin,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     camera_id: uuid.UUID,
@@ -138,6 +143,7 @@ def upload_recording(
 
 @router.get("/{recording_id}")
 def get_recording_status(
+    membership: RequireOrganisationViewer,
     organisation_id: uuid.UUID,
     site_id: uuid.UUID,
     camera_id: uuid.UUID,

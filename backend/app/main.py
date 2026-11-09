@@ -4,12 +4,11 @@ from fastapi import HTTPException
 from sqlalchemy import text
 
 from app.core.database import engine
-from app.api.organisations import router as organisations_router
+from app.api.auth import router as auth_router
 from app.api.parking_sites import router as parking_sites_router
 from app.api.cameras import router as cameras_router
 from app.api.video_recordings import router as video_recordings_router
 from app.api.occupancy import router as occupancy_router
-from app.api.reference_images import router as reference_images_router
 
 
 app = FastAPI(
@@ -19,10 +18,6 @@ app = FastAPI(
 )
 
 
-app.include_router(
-    organisations_router,
-    prefix="/api/v1",
-)
 
 app.include_router(
     parking_sites_router,
@@ -46,10 +41,6 @@ app.include_router(
     prefix="/api/v1",
 )
 
-app.include_router(
-    reference_images_router,
-    prefix="/api/v1",
-)
 
 
 
@@ -77,3 +68,8 @@ def database_health():
             status_code=503,
             detail="Database unavailable",
         )
+
+app.include_router(
+    auth_router,
+    prefix="/api/v1",
+)

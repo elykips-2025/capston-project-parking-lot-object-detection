@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ApiError } from "../api/client";
 import {
   uploadRecording,
   fetchRecordingStatus,
@@ -56,6 +57,14 @@ export default function RecordingProcessor({
       } catch (err) {
         if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : "Status check failed");
+
+        if (
+          err instanceof ApiError &&
+          [400, 401, 403, 404, 410, 422].includes(err.status)
+        ) {
+          return;
+        }
+
         timer = setTimeout(poll, 2000);
       }
     }
@@ -67,8 +76,7 @@ export default function RecordingProcessor({
       if (timer) clearTimeout(timer);
     };
   }, [
-    recording?.id,
-    recording?.status,
+    recording,
     organisationId,
     siteId,
     cameraId,
