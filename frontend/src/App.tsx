@@ -12,6 +12,7 @@ import {
 } from "./api/occupancy";
 
 import OccupancyHistoryChart from "./components/OccupancyHistoryChart";
+import RecordingProcessor from "./components/RecordingProcessor";
 
 type Point = { x: number; y: number };
 
@@ -29,7 +30,13 @@ const DEMO_SITE_ID =
 const DEMO_RECORDING_ID =
   "424b3b3c-2c4f-4450-8a6d-8c4e60452425";
 
+const DEMO_CAMERA_ID =
+  "98116c54-fc85-46a9-a97b-c507891afda2";
+
 export default function App() {
+  const [activeRecordingId, setActiveRecordingId] =
+    useState(DEMO_RECORDING_ID);
+
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [dashboardImage, setDashboardImage] =
   useState<HTMLImageElement | null>(null);
@@ -110,7 +117,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     fetchSiteOccupancy(
       DEMO_ORGANISATION_ID,
       DEMO_SITE_ID,
-      DEMO_RECORDING_ID,
+      activeRecordingId,
       controller.signal,
       selectedTimestamp,
     )
@@ -135,7 +142,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
       });
 
     return () => controller.abort();
-  }, [viewMode, selectedTimestamp]);
+  }, [viewMode, selectedTimestamp, activeRecordingId]);
 
   useEffect(() => {
   if (viewMode !== "dashboard") return;
@@ -148,7 +155,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   fetchOccupancyHistory(
     DEMO_ORGANISATION_ID,
     DEMO_SITE_ID,
-    DEMO_RECORDING_ID,
+    activeRecordingId,
     controller.signal,
   )
     .then(setOccupancyHistory)
@@ -168,7 +175,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     });
 
   return () => controller.abort();
-}, [viewMode]);
+}, [viewMode, activeRecordingId]);
 
   function uploadImage(file?: File) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -463,6 +470,17 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 
 
 {viewMode === "dashboard" && (<>
+  <RecordingProcessor
+    organisationId={DEMO_ORGANISATION_ID}
+    siteId={DEMO_SITE_ID}
+    cameraId={DEMO_CAMERA_ID}
+    onCompleted={(recordingId) => {
+      setSelectedTimestamp(null);
+      setOccupancy(null);
+      setOccupancyHistory(null);
+      setActiveRecordingId(recordingId);
+    }}
+  />
   <section className="occupancy-dashboard">
     {occupancyLoading && <p>Loading occupancy data...</p>}
 

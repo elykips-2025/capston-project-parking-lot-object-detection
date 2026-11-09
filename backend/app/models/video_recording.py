@@ -1,8 +1,10 @@
 
 import uuid
 from datetime import datetime
-
+from sqlalchemy import UUID
 from sqlalchemy import (
+    Integer,
+    Text,
     BigInteger,
     CheckConstraint,
     DateTime,
@@ -26,6 +28,10 @@ class VideoRecording(Base):
         CheckConstraint(
             "file_size_bytes > 0",
             name="ck_video_recordings_file_size",
+        ),
+        CheckConstraint(
+            "processing_attempts >= 0",
+            name="ck_video_recordings_processing_attempts",
         ),
     )
 
@@ -66,4 +72,36 @@ class VideoRecording(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    processing_finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    processing_attempts: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
+
+    last_processing_error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    processing_token: Mapped[uuid.UUID | None] = mapped_column(
+    UUID(as_uuid=True),
+    nullable=True,
+    )
+
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )

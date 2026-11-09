@@ -134,3 +134,59 @@ def upload_recording(
 
     finally:
         file.file.close()
+
+
+@router.get("/{recording_id}")
+def get_recording_status(
+    organisation_id: uuid.UUID,
+    site_id: uuid.UUID,
+    camera_id: uuid.UUID,
+    recording_id: uuid.UUID,
+    db: DbSession,
+):
+    from sqlalchemy import func
+    from app.models.occupancy_observation import OccupancyObservation
+
+    recording = db.scalar(
+        select(VideoRecording)
+        .join(Camera, VideoRecording.camera_id == Camera.id)
+        .join(ParkingSite, Camera.site_id == ParkingSite.id)
+        .where(
+            VideoRecording.id == recording_id,
+            VideoRecording.camera_id == camera_id,
+            Camera.site_id == site_id,
+            ParkingSite.organisation_id == organisation_id,
+        )
+    )
+
+    if recording is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Recording not found",
+        )
+
+    observation_count = db.scalar(
+        select(func.count(OccupancyObservation.id))
+        .where(
+            OccupancyObservation.recording_id == recording_id
+        )
+    )
+
+    return {
+        "id": recording.id,
+        "camera_id": recording.camera_id,
+        "filename": recording.original_filename,
+        "status": recording.status,
+        "display_status": {
+            "uploaded": "Queued",
+            "processing": "Processing",
+            "completed": "Completed",
+            "failed": "Failed",
+        }.get(recording.status, recording.status),
+        "processing_attempts": recording.processing_attempts,
+        "created_at": recording.created_at,
+        "processing_started_at": recording.processing_started_at,
+        "processing_finished_at": recording.processing_finished_at,
+        "error": recording.last_processing_error,
+        "observation_count": observation_count,
+    }

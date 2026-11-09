@@ -279,3 +279,28 @@ aside {
     padding: 16px;
   }
 }
+.recording-processor {
+  margin-top: 24px;
+  padding: 24px;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.recording-processor h2 {
+  margin-top: 0;
+}
+
+.recording-processor p {
+  color: #cbd5e1;
+}
+
+.recording-processor input[type="file"] {
+  display: block;
+  margin: 16px 0;
+  max-width: 100%;
+}
+
+.recording-processor strong {
+  color: #f8fafc;
+}

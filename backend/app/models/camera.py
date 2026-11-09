@@ -52,6 +52,11 @@ class Camera(Base):
         nullable=False,
     )
 
+    reference_image_storage_key: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
