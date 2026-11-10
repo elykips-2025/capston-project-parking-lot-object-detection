@@ -11,6 +11,9 @@ test -f .env.production
 [[ "$FRONTEND" == true || "$FRONTEND" == false ]]
 [[ "$RELEASE" == "$ROOT/.release/"* ]]
 COMPOSE=(docker compose --env-file .env.production -f "$ROOT/docker-compose.prod.yml" -p parksight)
+# Required when the deployed Compose file references PARKSIGHT_IMAGE.
+# The rollback override supplies the actual previous immutable image IDs.
+export PARKSIGHT_IMAGE="${IMAGE:-parksight-api:local}"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)-$$
 BACKUP_DIR="$ROOT/backups/$STAMP"
 mkdir -p "$BACKUP_DIR"
@@ -25,6 +28,10 @@ service_running() {
   [[ -n "$id" ]] || return 1
   state=$(docker inspect --format '{{.State.Status}}' "$id")
   [[ "$state" == running ]]
+}
+container_running() {
+  local container="$1"
+  [[ "$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null)" == true ]]
 }
 
 rollback() {
@@ -56,7 +63,7 @@ rollback() {
       # Keep the override beside the base Compose file so relative bind paths remain correct.
       printf 'services:\n  api:\n    image: "%s"\n  worker:\n    image: "%s"\n' \
         "$old_api" "$old_worker" > "$rollback_override"
-      if ! PARKSIGHT_IMAGE="$IMAGE" docker compose \
+      if ! docker compose \
           --env-file .env.production \
           -f "$ROOT/docker-compose.prod.yml" -f "$rollback_override" \
           -p parksight up -d --no-deps --force-recreate api worker; then
@@ -64,7 +71,10 @@ rollback() {
         recovered=false
       else
         # Compose service state and API availability are checked after restoration.
-        if ! service_running api || ! service_running worker || \
+        if ! container_running parksight-api-1 || \
+           ! container_running parksight-worker-1 || \
+           [[ "$(docker inspect --format '{{.Image}}' parksight-api-1)" != "$old_api" ]] || \
+           [[ "$(docker inspect --format '{{.Image}}' parksight-worker-1)" != "$old_worker" ]] || \
            ! curl -fsS --max-time 5 http://127.0.0.1:8181/api/v1/health >/dev/null; then
           echo 'CRITICAL: Restored backend failed health verification' >&2
           recovered=false
@@ -105,6 +115,9 @@ if [[ "$BACKEND" == true ]]; then
   test -s "$BACKUP_DIR/parksight.sql.gz"
   gzip -t "$BACKUP_DIR/parksight.sql.gz"
   docker pull "$IMAGE"
+  # Resolve the immutable image ID of the release being deployed.
+  expected_image_id=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+  test -n "$expected_image_id"
 
   export PARKSIGHT_IMAGE="$IMAGE"
   backend_started=true
@@ -122,6 +135,16 @@ if [[ "$BACKEND" == true ]]; then
     sleep 2
   done
   [[ "$ready" == true ]] || { echo 'Backend health verification failed' >&2; false; }
+
+  # Confirm both services use the newly deployed image.
+  for service in parksight-api-1 parksight-worker-1; do
+    actual_image_id=$(docker inspect "$service" --format '{{.Image}}')
+
+    if [[ "$actual_image_id" != "$expected_image_id" ]]; then
+      echo "Image verification failed for $service" >&2
+      false
+    fi
+  done
 fi
 
 if [[ "$FRONTEND" == true ]]; then
