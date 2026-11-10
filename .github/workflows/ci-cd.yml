@@ -36,24 +36,41 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: parksight
+          POSTGRES_PASSWORD: parksight_ci_password
+          POSTGRES_DB: parksight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U parksight -d parksight"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt -r backend/requirements-inference.txt pytest
+
       - name: Test
         working-directory: backend
         env:
-          DATABASE_URL: "sqlite+pysqlite:///:memory:"
+          DATABASE_URL: "postgresql+psycopg://parksight:parksight_ci_password@localhost:5432/parksight"
           JWT_SECRET_KEY: "parksight-ci-testing-only-0123456789abcdef0123456789abcdef0123456789abcdef"
         run: python -m pytest -q
-      # - name: Test
-      #   working-directory: backend
-      #   run: python -m pytest -q
+
   frontend-build:
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true'
@@ -103,7 +120,7 @@ jobs:
       (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true') &&
       (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped') &&
       (needs.frontend-build.result == 'success' || needs.frontend-build.result == 'skipped') &&
-      (needs.publish-backend.result == 'success' || needs.publish-backend.result == 'skipped')
+      (needs.changes.outputs.backend != 'true' && needs.changes.outputs.infra != 'true' || needs.publish-backend.result == 'success')
     runs-on: ubuntu-latest
     environment: production
     steps:
