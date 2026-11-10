@@ -1,64 +1,238 @@
+
 # ParkSight AI — Quantic MSSE Capstone
 
-ParkSight AI is a single-site academic MVP for analysing **recorded CCTV footage** to classify mapped parking bays as available, occupied, or unknown. It does not provide live parking availability.
+ParkSight AI is an AI-powered parking occupancy monitoring prototype for private car parks and SMEs. It analyses **recorded CCTV footage** to determine whether individually mapped parking bays are **occupied, empty or unknown**, and presents the results through a web dashboard and historical reports.
 
-## Submission links (complete before submitting)
+The current academic MVP demonstrates recorded-video analysis, not real-time parking availability. Multi-site commercial management, live CCTV monitoring, ANPR and automated enforcement are outside the demonstrated MVP scope.
 
-| Required deliverable | Link |
+## Capstone submission links
+
+| Deliverable | Link |
 |---|---|
-| GitHub source repository | [https://github.com/elykips-2025/capston-project-parking-lot-object-detection](https://github.com/elykips-2025/capston-project-parking-lot-object-detection) |
-| Deployed web application | **[ADD DEPLOYED URL]** |
-| Agile task board with user stories and completed tasks | **[ADD BOARD URL]** |
-| Design and testing document | [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) |
-| Sprint activity breakdown | [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md) |
-| 15–20 minute recorded demonstration | **[ADD VIDEO URL]** |
+| Source code | [GitHub Repository](https://github.com/elykips-2025/capston-project-parking-lot-object-detection) |
+| Deployed application | [ParkSight AI](https://parksight.kwetu.co.uk) |
+| Agile task board | [Outline Agile Board](https://outline.kwetu.co.uk/s/7f43578a-07c0-46f4-9fb6-37efb105fda6) |
+| Design and testing | [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) |
+| Sprint activity log | [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md) |
+| Recorded presentation | **[ADD VIDEO URL BEFORE SUBMISSION]** |
 
-**Required:** Grant the GitHub account `quantic-grader` access to the repository. Confirm every link is accessible to graders. Follow the Capstone Handbook's on-camera, identity verification and (if applicable) group requirements.
+The GitHub account `quantic-grader` must have access to the repository. Verify that the Agile board and all submission links are accessible to assessors.
 
-## MVP scope
+## Problem statement
 
-- Upload recorded CCTV video.
-- Detect vehicles with YOLO.
-- Define parking-bay polygons against a reference image.
-- Classify bays as available, occupied, or unknown using a MobileNetV3-based classifier and temporal aggregation.
-- Display the latest recorded occupancy over the reference image.
-- Display historical occupancy trends.
+Small and medium-sized private car park operators often lack affordable, bay-level occupancy information. Manual CCTV review is time-consuming, while dedicated sensors can introduce additional installation and maintenance costs.
 
-**Not in MVP:** multi-site SaaS management, organisation onboarding, tenant access, subscriptions, billing, live RTSP monitoring, ANPR, enforcement, predictive availability.
+ParkSight AI investigates whether existing camera recordings, computer vision and explicitly mapped parking-bay geometry can provide useful occupancy information without installing a sensor in every bay.
 
-## Implementation snapshot — 6 November 2026
+### Propose Solution
 
-- Frontend: React, TypeScript, Vite, Konva; native SVG historical chart.
-- Backend: Python, FastAPI, SQLAlchemy, Alembic; PostgreSQL.
-- Demo reference image: 1280 × 720.
-- Demo recording: 29 sampled timestamps, from 0 to 28.028 seconds; 27 mapped bays and 783 persisted observations.
-- Latest recorded state: **8 available, 13 occupied, 6 unknown**.
-- The history API and chart work; historical timestamp selection and a complete new-recording workflow remain to be finished.
+## User Journey
 
-These are observed demonstration results, **not** measured model accuracy.
+ParkSight AI supports a recorded-video parking occupancy analysis workflow, from parking-site configuration to historical reporting.
 
-## Local development
+### User workflow
 
-From `backend/` after configuring Python dependencies and PostgreSQL:
+1. **Access the application:** Open [ParkSight AI](https://parksight.kwetu.co.uk) and navigate to the parking management interface.
+2. **Configure a parking site:** Create or select a parking site and associate a camera with it.
+3. **Map parking bays:** Load a reference image and draw or edit polygons defining individual parking spaces.
+4. **Upload recorded CCTV footage:** Associate a supported video recording with the configured camera.
+5. **Process the recording:** Sample video frames, detect vehicles using YOLO11n, classify mapped bays using the MobileNetV3-based classifier, and aggregate temporal occupancy observations.
+6. **Review occupancy results:** Inspect mapped bays and their occupied, empty or unknown states, alongside aggregate availability.
+7. **Review historical occupancy:** Inspect occupancy changes across sampled timestamps using the historical reporting interface.
+
+### User journey validation
+
+| Step | Expected result | Evidence / validation status |
+|---|---|---|
+| Application access | Dashboard loads successfully | Homepage, API and static assets returned HTTP 200; full browser workflow requires confirmation |
+| Site and camera setup | Site and camera records are available | Demo database records established; full UI creation flow requires confirmation |
+| Parking-bay mapping | Bay polygons can be configured and displayed | 27 mapped bays in the demonstration dataset |
+| Video upload | Recording is associated with a camera | Demo video uploaded; complete new-recording UI workflow requires verification |
+| Video processing | Occupancy observations are persisted | 29 sampled frames, 27 bays and 783 observations; zero rejected frames |
+| Occupancy dashboard | Bay-level and aggregate results are displayed | Dashboard functionality observed; final deployed browser verification pending |
+| Historical reporting | Occupancy changes can be inspected over time | History API and chart observed; timestamp selection requires verification |
+
+**Scope note:** This workflow describes the intended end-to-end MVP journey. Some steps have been verified individually, but a complete fresh-recording journey on the final deployed application has not yet been confirmed. The displayed availability relates to processed recordings, not live parking conditions.
+
+### Demonstration acceptance criteria
+
+The final recorded demonstration should show a user progressing through the workflow, including a successful processing result, bay-level occupancy visualisation and historical reporting. Any incomplete step must be disclosed rather than represented as implemented.
+
+
+## Project objectives and functional requirements
+
+The MVP targets six core capabilities:
+
+1. **Parking site setup:** Represent a parking site and its associated camera.
+2. **Parking-bay mapping:** Define parking-space polygons against a reference image.
+3. **Vehicle detection:** Analyse recorded footage using YOLO.
+4. **Occupancy classification:** Classify mapped bays as occupied, empty or unknown, using temporal observations.
+5. **Occupancy dashboard:** Display bay-level status and aggregate availability.
+6. **Historical reporting:** Inspect occupancy changes across sampled recording timestamps.
+
+The demonstration must distinguish implemented functionality from work still pending verification.
+
+## Technical architecture
+
+```text
+Recorded CCTV video
+        |
+        v
+Frame sampling and YOLO vehicle detection
+        |
+        v
+Mapped parking-bay polygons
+        |
+        v
+MobileNetV3-based bay classification
+        |
+        v
+Temporal occupancy aggregation
+        |
+        v
+PostgreSQL observations
+        |
+        v
+FastAPI REST API
+        |
+        v
+React / TypeScript dashboard
+  - Bay mapping and occupancy overlays
+  - Historical occupancy reporting
+```
+
+### Technology stack
+
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Frontend | React, TypeScript, Vite | Web interface |
+| Mapping | Konva | Reference image and editable bay polygons |
+| Backend | Python, FastAPI | REST endpoints and application logic |
+| Database | PostgreSQL, SQLAlchemy, Alembic | Persistent application and occupancy data |
+| Vehicle detection | YOLO11n | Vehicle detection in sampled frames |
+| Bay classification | MobileNetV3-based model | Parking-bay occupancy inference |
+| Processing | Python worker | Recorded-video analysis |
+| Deployment | Docker Compose, Nginx | Container services and reverse proxy |
+| CI/CD | GitHub Actions, GHCR | Build, test, image publishing and deployment workflows |
+
+### Design decisions
+
+- **Recorded video instead of live streaming:** Improves reproducibility and supports repeatable evaluation.
+- **Explicit polygon mapping:** Accommodates different parking layouts and camera perspectives.
+- **Separate vehicle detection and bay classification:** Allows each stage to address a distinct inference problem.
+- **Unknown state:** Avoids automatically treating uncertain observations as empty or occupied.
+- **Temporal aggregation:** Helps reduce transient changes in classification.
+- **Relational persistence:** Supports historical queries and traceable observations.
+- **API/frontend separation:** Keeps presentation independent of the inference and persistence layers.
+
+See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) for the detailed rationale, software patterns, trade-offs and deployment options.
+
+## Agile software engineering methodology
+
+Development is organised into three retrospective workstreams. Actual sprint dates, completed user stories and task ownership should be verified against the [Agile board](https://outline.kwetu.co.uk/s/7f43578a-07c0-46f4-9fb6-37efb105fda6).
+
+| Workstream | Main engineering activities |
+|---|---|
+| Sprint 1 — Foundation and computer vision | Backend, database, site/camera records, video ingestion and vehicle detection |
+| Sprint 2 — Occupancy intelligence | Bay mapping, classification, temporal processing, dashboard and historical reporting |
+| Sprint 3 — Validation and delivery | Regression verification, CI/CD, deployment, troubleshooting and capstone evidence |
+
+Supporting activity evidence is documented in [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md).
+
+## Implementation and observed results
+
+The demonstration dataset includes:
+
+| Metric | Observed result |
+|---|---|
+| Reference video resolution | 1280 × 720 |
+| Recording duration | Approximately 28.83 seconds |
+| Mapped parking bays | 27 |
+| Sampled frames | 29 |
+| Rejected frames | 0 |
+| Occupancy observations | 783 |
+| Occupied observations | 355 |
+| Empty observations | 185 |
+| Unknown observations | 243 |
+
+A database-backed processing comparison matched the reference output for all **783 of 783 observations** across occupancy state, availability, temporal state and temporal availability. The maximum and mean probability differences were both 0.0.
+
+**Interpretation:** This establishes consistency between two processing outputs for the tested dataset. It does **not** establish 100% occupancy classification accuracy. Model precision, recall, F1 and a confusion matrix require independently labelled ground-truth data.
+
+## Testing and evaluation
+
+Testing evidence should cover:
+
+- Backend API and database operations.
+- Parking-bay mapping and persistence.
+- Video processing and occupancy observation generation.
+- Dashboard and historical-report behaviour.
+- Automated test results and CI execution.
+- Deployment smoke tests and frontend asset accessibility.
+- Invalid inputs and error handling.
+- Ground-truth classification evaluation.
+
+Observed deployment smoke checks returned HTTP 200 for the homepage, API health endpoint, JavaScript and CSS assets. A successful final deployment workflow and complete end-to-end browser demonstration still require confirmation.
+
+See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) for executed tests, evidence and outstanding evaluation work.
+
+## Deployment
+
+**Application:** https://parksight.kwetu.co.uk
+
+The deployment uses Nginx for the frontend and API reverse proxy, Docker Compose for application services, PostgreSQL for persistence, and a separate background worker.
+
+GitHub Actions workflows support automated checks, container publishing and VPS deployment. Review the repository workflow definitions and final successful run before claiming a fully verified CI/CD pipeline.
+
+### Local development
+
+Backend, after configuring the Python environment and database:
 
 ```bash
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-From `frontend/`:
+Frontend:
 
 ```bash
+cd frontend
 npm install
 npm run dev
 npm run build
 ```
 
-Configuration, database migrations and video-processing commands must be verified and documented against the final repository before submission. Never commit credentials or unauthorised CCTV footage.
+Environment variables, database migrations and worker commands must be checked against the final repository. Do not commit credentials, private recordings or sensitive configuration.
 
-## Architecture and evidence
+## Limitations and future work
 
-See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) for architectural decisions, testing evidence, evaluation plan, deployment trade-offs, limitations and submission checklist. See [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md) for the retrospective workstream breakdown, outstanding sprint activities and agile evidence register.
+The MVP is limited to recorded CCTV footage. Results depend on camera angle, image quality, lighting, occlusion, polygon calibration and model confidence. An unknown state is retained when inference is insufficiently reliable.
+
+Prioritised future work includes independently labelled accuracy evaluation, additional camera conditions, repeatable new-recording workflows, live stream ingestion, stronger multi-site access controls and production-grade monitoring.
+
+ANPR, automated payments, enforcement and predictive availability are future possibilities, not demonstrated capabilities.
 
 ## AI tooling disclosure
 
-ChatGPT was used as an engineering assistant for task decomposition, code-review suggestions, troubleshooting and documentation. The delivered application uses YOLO vehicle detection and a MobileNetV3-based parking-bay occupancy classifier. These uses are documented separately in [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md#ai-tooling-used-during-development), including developer verification, limitations and responsible-use considerations.
+ParkSight AI uses YOLO for vehicle detection and a MobileNetV3-based model for parking-bay occupancy inference.
+
+ChatGPT was used as an engineering assistant for task decomposition, code-review suggestions, troubleshooting and documentation. Suggested changes were subject to developer review and manual verification. See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md#ai-tooling-used-during-development) for the fuller disclosure and responsible-use considerations.
+
+## Final submission checklist
+
+- [ ] Source repository contains the final documented code.
+- [ ] `quantic-grader` has repository access.
+- [ ] Deployed application is accessible and fully demonstrated.
+- [ ] Agile board is accessible and accurately reflects completed user stories.
+- [ ] Design and testing document includes decisions, patterns, test evidence and deployment cost considerations.
+- [ ] CI/CD execution evidence is linked and verified.
+- [ ] A 15–20-minute recorded presentation demonstrates the working software with screen capture and the presenter visible.
+- [ ] Government-issued ID is shown as required by the Capstone Handbook.
+- [ ] Presentation recording link is added above.
+- [ ] All submission links are tested before submission.
+
+## Supporting documentation
+
+- [Design, Architecture and Testing](DESIGN_AND_TESTING.md)
+- [Sprint Activity Log](SPRINT_ACTIVITY_LOG.md)
+- [Agile Board](https://outline.kwetu.co.uk/s/7f43578a-07c0-46f4-9fb6-37efb105fda6)
