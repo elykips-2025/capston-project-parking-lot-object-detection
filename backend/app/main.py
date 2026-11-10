@@ -9,7 +9,8 @@ from app.api.parking_sites import router as parking_sites_router
 from app.api.cameras import router as cameras_router
 from app.api.video_recordings import router as video_recordings_router
 from app.api.occupancy import router as occupancy_router
-
+from app.api.organisations import router as organisations_router
+from app.api.parking_bays import router as parking_bays_router
 
 app = FastAPI(
     title="ParkSight AI API",
@@ -17,7 +18,10 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
+app.include_router(
+    organisations_router,
+    prefix="/api/v1",
+)
 
 app.include_router(
     parking_sites_router,
@@ -40,6 +44,9 @@ app.include_router(
     occupancy_router,
     prefix="/api/v1",
 )
+
+
+app.include_router(parking_bays_router, prefix="/api/v1")
 
 
 

@@ -16,6 +16,11 @@ export type Recording = {
   processing_attempts?: number;
   observation_count?: number;
   error?: string | null;
+
+  camera_id?: string;
+  created_at?: string;
+  processing_started_at?: string | null;
+  processing_finished_at?: string | null;
 };
 
 function recordingUrl(
@@ -71,4 +76,40 @@ export async function fetchRecordingStatus(
   );
 
   return parseResponse<Recording>(response);
+}
+
+export async function listRecordings(
+  organisationId: string,
+  siteId: string,
+  cameraId: string,
+  signal?: AbortSignal,
+): Promise<Recording[]> {
+  const response = await apiFetch(
+    recordingUrl(organisationId, siteId, cameraId),
+    {
+      signal,
+      cache: "no-store",
+    },
+  );
+
+  const data = await parseResponse<unknown>(response);
+
+  if (
+    !Array.isArray(data) ||
+    !data.every(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        typeof item.id === "string" &&
+        typeof item.status === "string" &&
+        ["uploaded", "processing", "completed", "failed"].includes(
+          item.status,
+        ) &&
+        item.camera_id === cameraId,
+    )
+  ) {
+    throw new Error("Invalid recording-list API response");
+  }
+
+  return data as Recording[];
 }

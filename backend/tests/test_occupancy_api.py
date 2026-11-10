@@ -6,6 +6,10 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.auth import get_current_user
+from app.models.user import User
+from app.models.organisation_membership import OrganisationMembership
+
 from app.core.database import Base
 from app.core.dependencies import get_db
 from app.main import app
@@ -42,6 +46,16 @@ def api():
     )
 
     organisation_id = uuid.uuid4()
+
+    user_id = uuid.uuid4()
+
+    test_user = User(
+        id=user_id,
+        email=f"occupancy-{user_id}@example.test",
+        password_hash="test-only-not-used",
+        is_active=True,
+    )
+
     site_id = uuid.uuid4()
     camera_id = uuid.uuid4()
     recording_id = uuid.uuid4()
@@ -51,6 +65,18 @@ def api():
             id=organisation_id,
             name="Integration Test Organisation",
         ))
+        db.flush()
+
+        db.add(test_user)
+        db.flush()
+
+        db.add(
+            OrganisationMembership(
+                user_id=user_id,
+                organisation_id=organisation_id,
+                role="viewer",
+            )
+        )
         db.flush()
 
         db.add(ParkingSite(
@@ -123,6 +149,8 @@ def api():
 
     app.dependency_overrides[get_db] = override_db
 
+    app.dependency_overrides[get_current_user] = lambda: test_user
+
     base_url = (
         f"/api/v1/organisations/{organisation_id}"
         f"/sites/{site_id}/occupancy"
@@ -132,6 +160,7 @@ def api():
         with TestClient(app) as client:
             yield client, base_url, recording_id
     finally:
+        app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
 

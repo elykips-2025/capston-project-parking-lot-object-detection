@@ -141,6 +141,54 @@ def upload_recording(
         file.file.close()
 
 
+
+@router.get("")
+def list_recordings(
+    membership: RequireOrganisationViewer,
+    organisation_id: uuid.UUID,
+    site_id: uuid.UUID,
+    camera_id: uuid.UUID,
+    db: DbSession,
+):
+    camera = db.scalar(
+        select(Camera)
+        .join(ParkingSite, Camera.site_id == ParkingSite.id)
+        .where(
+            Camera.id == camera_id,
+            Camera.site_id == site_id,
+            ParkingSite.organisation_id == organisation_id,
+        )
+    )
+
+    if camera is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Camera not found at this site",
+        )
+
+    recordings = db.scalars(
+        select(VideoRecording)
+        .where(VideoRecording.camera_id == camera_id)
+        .order_by(
+            VideoRecording.created_at.desc(),
+            VideoRecording.id.desc(),
+        )
+        .limit(100)
+    ).all()
+
+    return [
+        {
+            "id": recording.id,
+            "camera_id": recording.camera_id,
+            "original_filename": recording.original_filename,
+            "status": recording.status,
+            "created_at": recording.created_at,
+            "processing_started_at": recording.processing_started_at,
+            "processing_finished_at": recording.processing_finished_at,
+        }
+        for recording in recordings
+    ]
+
 @router.get("/{recording_id}")
 def get_recording_status(
     membership: RequireOrganisationViewer,

@@ -1,14 +1,21 @@
 
 import { useEffect,useRef, useState } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text } from "react-konva";
-import { apiFetch } from "./api/client";
+import { uploadCameraReferenceImage } from "./api/cameraConfiguration";
 import "./App.css";
 import "./DashboardTheme.css";
 import type Konva from "konva";
+import { apiFetch, ApiError } from "./api/client";
+import { loadParkingBays, saveParkingBays } from "./api/parkingBays";
 import {
   ChartNoAxesCombined,
   Maximize2,
 } from "lucide-react";
+
+import {
+  listRecordings,
+  type Recording,
+} from "./api/recordings";
 
 import {
   fetchSiteOccupancy,
@@ -27,28 +34,50 @@ type ParkingBay = {
   points: Point[];
 };
 
-const DEMO_ORGANISATION_ID =
-  "426de53d-d71e-4e0d-93ff-f93af9ff0ac5";
+// const DEMO_ORGANISATION_ID =
+//   "426de53d-d71e-4e0d-93ff-f93af9ff0ac5";
 
-const DEMO_SITE_ID =
-  "88ba90de-72bc-463a-baa6-d14992dbf1f9";
+// const DEMO_SITE_ID =
+//   "88ba90de-72bc-463a-baa6-d14992dbf1f9";
 
-const DEMO_RECORDING_ID =
-  "424b3b3c-2c4f-4450-8a6d-8c4e60452425";
+// const DEMO_RECORDING_ID =
+//   "424b3b3c-2c4f-4450-8a6d-8c4e60452425";
 
-const DEMO_CAMERA_ID =
-  "98116c54-fc85-46a9-a97b-c507891afda2";
+// const DEMO_CAMERA_ID =
+//   "98116c54-fc85-46a9-a97b-c507891afda2";
 
-export default function App() {
+type AppProps = {
+  organisationId: string;
+  siteId: string;
+  cameraId: string;
+};
+
+export default function App({ organisationId, siteId, cameraId }: AppProps) {
+  void organisationId;
+  void siteId;
+  void cameraId;
+  // const [activeRecordingId, setActiveRecordingId] =
+  //   useState(DEMO_RECORDING_ID);
+
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [activeRecordingId, setActiveRecordingId] =
-    useState(DEMO_RECORDING_ID);
+  useState<string | null>(null);
+  const [recordingsLoading, setRecordingsLoading] = useState(true);
+  const [recordingsError, setRecordingsError] = useState<string | null>(null);
 
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [dashboardImage, setDashboardImage] =
   useState<HTMLImageElement | null>(null);
   const [bays, setBays] = useState<ParkingBay[]>([]);
+  const [mappingLoading, setMappingLoading] = useState(true);
+const [mappingSaving, setMappingSaving] = useState(false);
+const [mappingError, setMappingError] = useState<string | null>(null);
+const [mappingMessage, setMappingMessage] = useState<string | null>(null);
   const [draft, setDraft] = useState<Point[]>([]);
   const [filename, setFilename] = useState("");
+
+  const [imageUploading, setImageUploading] = useState(false);
+const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [selectedBayId, setSelectedBayId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const stageRef = useRef<Konva.Stage>(null);
@@ -66,11 +95,11 @@ export default function App() {
   const [occupancyHistory, setOccupancyHistory] =
   useState<OccupancyHistoryResponse | null>(null);
 
-const [historyLoading, setHistoryLoading] = useState(false);
-const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const activeImage = viewMode === "dashboard" ? dashboardImage : image;
-  
+
   const maxWidth = 1100;
   // const baseScale = image ? Math.min(1, maxWidth / image.width) : 1;
   // const width = image ? image.width * baseScale : maxWidth;
@@ -84,128 +113,315 @@ const width = activeImage ? activeImage.width * baseScale : maxWidth;
 const height = activeImage ? activeImage.height * baseScale : 600;
   const scale = baseScale * zoom;
 
-  useEffect(() => {
-    if (viewMode !== "dashboard") return;
-
-    const controller = new AbortController();
-    const img = new window.Image();
-
-    let objectUrl: string | null = null;
-    let cancelled = false;
-
-    async function loadReferenceImage() {
-      try {
-        const response = await apiFetch(
-          `/organisations/${DEMO_ORGANISATION_ID}` +
-            `/sites/${DEMO_SITE_ID}` +
-            `/cameras/${DEMO_CAMERA_ID}/reference-image`,
-          { signal: controller.signal },
-        );
-
-        const blob = await response.blob();
-
-        if (cancelled) return;
-
-        if (!blob.type.startsWith("image/")) {
-          throw new Error("Invalid reference-image response");
-        }
-
-        objectUrl = URL.createObjectURL(blob);
-
-        img.onload = () => {
-          if (!cancelled) {
-            setDashboardImage(img);
-          }
-        };
-
-        img.onerror = () => {
-          if (!cancelled) {
-            console.error("Unable to decode dashboard reference image");
-          }
-        };
-
-        img.src = objectUrl;
-      } catch (error: unknown) {
-        if (cancelled || controller.signal.aborted) return;
-
-        console.error(
-          "Unable to load dashboard reference image",
-          error,
-        );
-      }
-    }
-
-    void loadReferenceImage();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-
-      img.onload = null;
-      img.onerror = null;
-
-      img.removeAttribute("src");
-
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [viewMode]);
-
-
-    useEffect(() => {
-    if (viewMode !== "dashboard") return;
-
-    const controller = new AbortController();
-
-    setOccupancyLoading(true);
-    setOccupancyError(null);
-
-    fetchSiteOccupancy(
-      DEMO_ORGANISATION_ID,
-      DEMO_SITE_ID,
-      activeRecordingId,
-      controller.signal,
-      selectedTimestamp,
-    )
-      .then((data) => {
-        if (!controller.signal.aborted) {
-          setOccupancy(data);
-        }
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-
-        setOccupancyError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load occupancy data",
-        );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setOccupancyLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, [viewMode, selectedTimestamp, activeRecordingId]);
 
   useEffect(() => {
-  if (viewMode !== "dashboard") return;
-
   const controller = new AbortController();
 
-  setHistoryLoading(true);
+  setRecordingsLoading(true);
+  setRecordingsError(null);
+  setRecordings([]);
+  setActiveRecordingId(null);
+
+  listRecordings(
+    organisationId,
+    siteId,
+    cameraId,
+    controller.signal,
+  )
+    .then((data) => {
+      if (controller.signal.aborted) return;
+
+      setRecordings(data);
+
+      const latestCompleted = data.find(
+        (recording) => recording.status === "completed",
+      );
+
+      setActiveRecordingId(latestCompleted?.id ?? null);
+    })
+    .catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+
+      setRecordingsError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load recordings",
+      );
+    })
+    .finally(() => {
+      if (!controller.signal.aborted) {
+        setRecordingsLoading(false);
+      }
+    });
+
+  return () => controller.abort();
+}, [organisationId, siteId, cameraId]);
+
+
+
+useEffect(() => {
+  const controller = new AbortController();
+
+  setMappingLoading(true);
+  setMappingError(null);
+  setMappingMessage(null);
+  setBays([]);
+
+  async function restoreMapping() {
+    try {
+      const saved = await loadParkingBays(
+        organisationId,
+        siteId,
+        cameraId,
+      );
+
+      if (!controller.signal.aborted) {
+        setBays(saved);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setMappingError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load parking-bay mapping",
+        );
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setMappingLoading(false);
+      }
+    }
+  }
+
+  void restoreMapping();
+
+  return () => controller.abort();
+}, [organisationId, siteId, cameraId]);
+
+
+useEffect(() => {
+  const controller = new AbortController();
+  const img = new window.Image();
+
+  let objectUrl: string | null = null;
+  let cancelled = false;
+
+  // Reset image state when the selected camera changes.
+  setImage(null);
+  setDashboardImage(null);
+  setFilename("");
+  // setBays([]);
+  setDraft([]);
+  setSelectedBayId(null);
+
+  async function loadReferenceImage() {
+    try {
+      const response = await apiFetch(
+        `/organisations/${encodeURIComponent(organisationId)}` +
+          `/sites/${encodeURIComponent(siteId)}` +
+          `/cameras/${encodeURIComponent(cameraId)}/reference-image`,
+        { signal: controller.signal },
+      );
+
+      const blob = await response.blob();
+
+      if (cancelled) return;
+
+      if (!["image/jpeg", "image/png"].includes(blob.type)) {
+        throw new Error("Unsupported reference image format");
+      }
+
+      objectUrl = URL.createObjectURL(blob);
+
+      img.onload = () => {
+        if (cancelled) return;
+
+        setImage(img);
+        setDashboardImage(img);
+        setFilename("Saved camera reference image");
+      };
+
+      img.onerror = () => {
+        if (!cancelled) {
+          console.error("Unable to decode camera reference image");
+        }
+      };
+
+      img.src = objectUrl;
+    } catch (error: unknown) {
+      if (cancelled || controller.signal.aborted) return;
+
+      // A newly created camera may not have an image yet.
+      if (error instanceof ApiError && error.status === 404) {
+        return;
+      }
+
+      console.error("Unable to load camera reference image", error);
+    }
+  }
+
+  void loadReferenceImage();
+
+  return () => {
+    cancelled = true;
+    controller.abort();
+
+    img.onload = null;
+    img.onerror = null;
+    img.removeAttribute("src");
+
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+}, [organisationId, siteId, cameraId]);
+
+
+  useEffect(() => {
+  const controller = new AbortController();
+
+  setOccupancy(null);
+  setOccupancyError(null);
+
+  if (viewMode !== "dashboard" || !activeRecordingId) {
+    setOccupancyLoading(false);
+    return () => controller.abort();
+  }
+
+  setOccupancyLoading(true);
+
+  fetchSiteOccupancy(
+    organisationId,
+    siteId,
+    activeRecordingId,
+    controller.signal,
+    selectedTimestamp,
+  )
+    .then((data) => {
+      if (!controller.signal.aborted) {
+        setOccupancy(data);
+      }
+    })
+    .catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+
+      setOccupancyError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load occupancy data",
+      );
+    })
+    .finally(() => {
+      if (!controller.signal.aborted) {
+        setOccupancyLoading(false);
+      }
+    });
+
+  return () => controller.abort();
+}, [
+  viewMode,
+  organisationId,
+  siteId,
+  activeRecordingId,
+  selectedTimestamp,
+]);
+
+
+  //   useEffect(() => {
+  //   if (viewMode !== "dashboard") return;
+
+  //   const controller = new AbortController();
+
+  //   setOccupancyLoading(true);
+  //   setOccupancyError(null);
+
+  //   fetchSiteOccupancy(
+  //     DEMO_ORGANISATION_ID,
+  //     DEMO_SITE_ID,
+  //     activeRecordingId,
+  //     controller.signal,
+  //     selectedTimestamp,
+  //   )
+  //     .then((data) => {
+  //       if (!controller.signal.aborted) {
+  //         setOccupancy(data);
+  //       }
+  //     })
+  //     .catch((error: unknown) => {
+  //       if (controller.signal.aborted) return;
+
+  //       setOccupancyError(
+  //         error instanceof Error
+  //           ? error.message
+  //           : "Unable to load occupancy data",
+  //       );
+  //     })
+  //     .finally(() => {
+  //       if (!controller.signal.aborted) {
+  //         setOccupancyLoading(false);
+  //       }
+  //     });
+
+  //   return () => controller.abort();
+  // }, [viewMode, selectedTimestamp, activeRecordingId]);
+
+//   useEffect(() => {
+//   if (viewMode !== "dashboard") return;
+
+//   const controller = new AbortController();
+
+//   setHistoryLoading(true);
+//   setHistoryError(null);
+
+//   fetchOccupancyHistory(
+//     DEMO_ORGANISATION_ID,
+//     DEMO_SITE_ID,
+//     activeRecordingId,
+//     controller.signal,
+//   )
+//     .then(setOccupancyHistory)
+//     .catch((error: unknown) => {
+//       if (controller.signal.aborted) return;
+
+//       setHistoryError(
+//         error instanceof Error
+//           ? error.message
+//           : "Unable to load occupancy history",
+//       );
+//     })
+//     .finally(() => {
+//       if (!controller.signal.aborted) {
+//         setHistoryLoading(false);
+//       }
+//     });
+
+//   return () => controller.abort();
+// }, [viewMode, activeRecordingId]);
+
+useEffect(() => {
+  const controller = new AbortController();
+
+  setOccupancyHistory(null);
   setHistoryError(null);
 
+  if (viewMode !== "dashboard" || !activeRecordingId) {
+    setHistoryLoading(false);
+    return () => controller.abort();
+  }
+
+  setHistoryLoading(true);
+
   fetchOccupancyHistory(
-    DEMO_ORGANISATION_ID,
-    DEMO_SITE_ID,
+    organisationId,
+    siteId,
     activeRecordingId,
     controller.signal,
   )
-    .then(setOccupancyHistory)
+    .then((data) => {
+      if (!controller.signal.aborted) {
+        setOccupancyHistory(data);
+      }
+    })
     .catch((error: unknown) => {
       if (controller.signal.aborted) return;
 
@@ -222,25 +438,67 @@ const height = activeImage ? activeImage.height * baseScale : 600;
     });
 
   return () => controller.abort();
-}, [viewMode, activeRecordingId]);
+}, [
+  viewMode,
+  organisationId,
+  siteId,
+  activeRecordingId,
+]);
 
-  function uploadImage(file?: File) {
-    if (!file || !file.type.startsWith("image/")) return;
+
+async function uploadImage(file?: File) {
+  if (!file) return;
+
+  if (!["image/jpeg", "image/png"].includes(file.type)) {
+    setImageUploadError("Only JPEG and PNG images are supported.");
+    return;
+  }
+
+  setImageUploading(true);
+  setImageUploadError(null);
+
+  try {
+    // Persist the reference image before updating editor state.
+    await uploadCameraReferenceImage(
+      organisationId,
+      siteId,
+      cameraId,
+      file,
+    );
 
     const url = URL.createObjectURL(file);
     const img = new window.Image();
 
-    img.onload = () => {
-      setImage(img);
-      setFilename(file.name);
-      setBays([]);
-      setDraft([]);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () =>
+          reject(new Error("Unable to display uploaded image"));
+        img.src = url;
+      });
+    } finally {
       URL.revokeObjectURL(url);
-    };
+    }
 
-    img.onerror = () => URL.revokeObjectURL(url);
-    img.src = url;
+    setImage(img);
+    setDashboardImage(img);
+    setFilename(file.name);
+    setBays([]);
+    setDraft([]);
+    setSelectedBayId(null);
+    setZoom(1);
+    setViewport({ x: 0, y: 0 });
+  } catch (error) {
+    setImageUploadError(
+      error instanceof Error
+        ? error.message
+        : "Unable to upload camera reference image",
+    );
+  } finally {
+    setImageUploading(false);
   }
+}
+
 
   function fitToView() {
   setZoom(1);
@@ -348,24 +606,83 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   }
 
 
-  function addPoint(point: Point) {
-    if (!image) return;
 
-    const next = [...draft, point];
 
-    if (next.length === 4) {
-      setBays((current) => [
+function addPoint(point: Point) {
+  if (!image) return;
+
+  const next = [...draft, point];
+
+  if (next.length === 4) {
+    setBays((current) => {
+      const prefix = "CCP-L01";
+      const existing = new Set(current.map((bay) => bay.id));
+
+      let number = 1;
+      let bayId: string;
+
+      do {
+        bayId = `${prefix}-B${String(number).padStart(3, "0")}`;
+        number++;
+      } while (existing.has(bayId));
+
+      return [
         ...current,
         {
-          id: `A${String(current.length + 1).padStart(2, "0")}`,
+          id: bayId,
           points: next,
         },
-      ]);
-      setDraft([]);
-    } else {
-      setDraft(next);
-    }
+      ];
+    });
+
+    setDraft([]);
+  } else {
+    setDraft(next);
   }
+}
+
+
+
+
+async function persistMapping() {
+  if (!image || mappingLoading || mappingSaving) return;
+
+  if (draft.length > 0) {
+    setMappingError("Finish or undo the current polygon before saving.");
+    return;
+  }
+
+  if (bays.length === 0) {
+    setMappingError("Draw at least one parking bay before saving.");
+    return;
+  }
+
+  setMappingSaving(true);
+  setMappingError(null);
+  setMappingMessage(null);
+
+  try {
+    await saveParkingBays(
+      organisationId,
+      siteId,
+      cameraId,
+      bays,
+    );
+
+    setMappingMessage(
+      `Saved ${bays.length} parking bays successfully.`,
+    );
+  } catch (error) {
+    setMappingError(
+      error instanceof Error
+        ? error.message
+        : "Unable to save parking-bay mapping",
+    );
+  } finally {
+    setMappingSaving(false);
+  }
+}
+
 
   function exportJSON() {
     if (!image) return;
@@ -406,7 +723,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 
   return (
     <main className="app">
-      
+
 <header>
   <h1>ParkSight AI</h1>
   <p>
@@ -524,6 +841,70 @@ const height = activeImage ? activeImage.height * baseScale : 600;
 
 
 {viewMode === "dashboard" && (<>
+<section className="recording-selection">
+  <h2>Camera recordings</h2>
+
+  {recordingsLoading && (
+    <p role="status">Loading recordings...</p>
+  )}
+
+  {recordingsError && (
+    <p role="alert" className="occupancy-error">
+      {recordingsError}
+    </p>
+  )}
+
+  {!recordingsLoading && !recordingsError && (
+    <>
+      {recordings.length === 0 ? (
+        <p>
+          No recordings available for this camera.
+          Upload an MP4 recording to begin occupancy analysis.
+        </p>
+      ) : (
+        <>
+          <label htmlFor="active-recording">
+            Select recording
+          </label>
+
+          <select
+            id="active-recording"
+            value={activeRecordingId ?? ""}
+            onChange={(event) => {
+              setSelectedTimestamp(null);
+              setActiveRecordingId(event.target.value || null);
+            }}
+          >
+            <option value="">Select a completed recording</option>
+
+            {recordings
+              .filter(
+                (recording) =>
+                  recording.status === "completed",
+              )
+              .map((recording) => (
+                <option
+                  key={recording.id}
+                  value={recording.id}
+                >
+                  {recording.original_filename ??
+                    recording.filename ??
+                    recording.id}
+                </option>
+              ))}
+          </select>
+
+          {!activeRecordingId && (
+            <p>
+              No completed recording selected.
+              Upload a recording or select one above.
+            </p>
+          )}
+        </>
+      )}
+    </>
+  )}
+</section>
   <section className="occupancy-dashboard">
     {occupancyLoading && <p>Loading occupancy data...</p>}
 
@@ -564,31 +945,55 @@ const height = activeImage ? activeImage.height * baseScale : 600;
       </>
     )}
 
-    
+
   </section>
 
   </>
-  
+
 )}
 
 
 {viewMode === "editor" && (
   <section className="toolbar">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(event) => uploadImage(event.target.files?.[0])}
-        />
 
-        <button onClick={() => inputRef.current?.click()}>
+<input
+  ref={inputRef}
+  type="file"
+  accept="image/jpeg,image/png"
+  hidden
+  disabled={imageUploading}
+  onChange={async (event) => {
+    const file = event.currentTarget.files?.[0];
+
+    // Reset the input so the same file can be selected again.
+    event.currentTarget.value = "";
+
+    await uploadImage(file);
+  }}
+/>
+
+<button
+  type="button"
+  disabled={imageUploading}
+  onClick={() => inputRef.current?.click()}
+>
+  {imageUploading ? "Uploading..." : "Upload Camera Image"}
+</button>
+
+{imageUploadError && (
+  <p role="alert" className="error-message">
+    {imageUploadError}
+  </p>
+)}
+
+
+        {/* <button onClick={() => inputRef.current?.click()}>
           Upload Camera Image
-        </button>
+        </button> */}
 
 
         <input
-        
+
           type="file"
           accept=".json,application/json"
           disabled={!image}
@@ -613,6 +1018,37 @@ const height = activeImage ? activeImage.height * baseScale : 600;
           Remove Last Bay
         </button>
 
+
+<button
+  type="button"
+  disabled={
+    !image ||
+    mappingLoading ||
+    mappingSaving ||
+    imageUploading ||
+    bays.length === 0 ||
+    draft.length > 0
+  }
+  onClick={() => void persistMapping()}
+>
+  {mappingSaving ? "Saving..." : "Save Mapping"}
+</button>
+
+{mappingLoading && <span>Loading saved mapping...</span>}
+
+{mappingError && (
+  <span role="alert" style={{ color: "#ef4444" }}>
+    {mappingError}
+  </span>
+)}
+
+{mappingMessage && (
+  <span role="status" style={{ color: "#22c55e" }}>
+    {mappingMessage}
+  </span>
+)}
+
+
         <button disabled={bays.length === 0} onClick={exportJSON}>
           Export JSON
         </button>
@@ -627,9 +1063,9 @@ const height = activeImage ? activeImage.height * baseScale : 600;
       <section className="workspace">
         <div className="canvas-panel">
           {activeImage ? (
-            
 
-            
+
+
 <Stage
   ref={stageRef}
   width={width}
@@ -727,7 +1163,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
   listening
 />
 
-                
+
 
 {displayBays.map((bay) => {
   const selected =
@@ -825,7 +1261,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
                       key={`${bay.id}-label`}
                       x={center.x - 12}
                       y={center.y - 8}
-                      text={bay.id}
+                      text={bay.id.split("-").at(-1) ?? bay.id}
                       fill="#ffffff"
                       fontSize={14}
                       fontStyle="bold"
@@ -836,7 +1272,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
                   );
                 })}
 
-                
+
 {viewMode === "editor" && draft.length > 0 &&  (
   <>
     <Line
@@ -871,7 +1307,7 @@ const height = activeImage ? activeImage.height * baseScale : 600;
           )}
         </div>
 
-        
+
 <aside>
   <h2>
     Parking Bays (
@@ -978,16 +1414,34 @@ Expand
           </div>
 
           <RecordingProcessor
-            organisationId={DEMO_ORGANISATION_ID}
-            siteId={DEMO_SITE_ID}
-            cameraId={DEMO_CAMERA_ID}
-            onCompleted={(recordingId) => {
-              setSelectedTimestamp(null);
-              setOccupancy(null);
-              setOccupancyHistory(null);
-              setActiveRecordingId(recordingId);
-            }}
-          />
+  organisationId={organisationId}
+  siteId={siteId}
+  cameraId={cameraId}
+  onCompleted={(recordingId) => {
+    setSelectedTimestamp(null);
+    setOccupancy(null);
+    setOccupancyHistory(null);
+
+    setRecordings((previous) => {
+      const existing = previous.find(
+        (recording) => recording.id === recordingId,
+      );
+
+      return [
+        {
+          ...existing,
+          id: recordingId,
+          status: "completed" as const,
+        },
+        ...previous.filter(
+          (recording) => recording.id !== recordingId,
+        ),
+      ];
+    });
+
+    setActiveRecordingId(recordingId);
+  }}
+/>
         </section>
       )}
     </main>
