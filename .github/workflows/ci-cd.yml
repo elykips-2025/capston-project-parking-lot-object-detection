@@ -63,6 +63,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt -r backend/requirements-inference.txt pytest
+        
+      - name: Create integration-test database
+        env:
+          PGPASSWORD: parksight_ci_password
+        run: |
+          psql \
+            -h localhost \
+            -p 5432 \
+            -U parksight \
+            -d parksight \
+            -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE parksight_test OWNER parksight;"
 
       - name: Test
         working-directory: backend
