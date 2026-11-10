@@ -25,6 +25,14 @@ container_running() {
   [[ "$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null)" == true ]]
 }
 
+
+normalize_frontend_permissions() {
+  # Keep directories group-writable and readable by Nginx.
+  # Preserve setgid so new files inherit the www-data group.
+  find "$PUBLIC" -type d -exec chmod 2775 {} +
+  find "$PUBLIC" -type f -exec chmod 644 {} +
+}
+
 service_running() {
   local service="$1" id state
   id=$("${COMPOSE[@]}" ps -q "$service")
@@ -60,6 +68,13 @@ rollback() {
       echo 'CRITICAL: Frontend rollback failed' >&2
       recovered=false
     }
+  fi
+
+  if [[ "$frontend_started" == true ]]; then
+    if ! normalize_frontend_permissions; then
+      echo 'CRITICAL: Could not restore frontend asset permissions' >&2
+      recovered=false
+    fi
   fi
 
   if [[ "$backend_started" == true ]]; then
@@ -150,6 +165,7 @@ if [[ "$FRONTEND" == true ]]; then
   frontend_started=true
   rsync -rlt --omit-dir-times --delete --exclude='.well-known/' \
     "$RELEASE/dist/" "$PUBLIC/"
+  normalize_frontend_permissions
   test -s "$PUBLIC/index.html"
   curl -fsS --max-time 10 https://parksight.kwetu.co.uk/ >/dev/null
 fi
