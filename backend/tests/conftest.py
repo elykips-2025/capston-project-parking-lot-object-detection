@@ -1,5 +1,8 @@
-import pytest
+from pathlib import Path
 
+import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -40,9 +43,17 @@ def postgres_test_engine():
                 text("SELECT version_num FROM alembic_version")
             )
 
-            if revision != "eea4d40e4c3d":
+            alembic_config = Config(
+                str(Path(__file__).resolve().parents[1] / "alembic.ini")
+            )
+
+            script = ScriptDirectory.from_config(alembic_config)
+            expected_revision = script.get_current_head()
+
+            if revision != expected_revision:
                 pytest.fail(
-                    f"Unexpected test schema revision: {revision}"
+                    f"Unexpected test schema revision: {revision}. "
+                    f"Expected: {expected_revision}"
                 )
 
         yield engine
