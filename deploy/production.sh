@@ -11,8 +11,6 @@ test -f .env.production
 [[ "$FRONTEND" == true || "$FRONTEND" == false ]]
 [[ "$RELEASE" == "$ROOT/.release/"* ]]
 COMPOSE=(docker compose --env-file .env.production -f "$ROOT/docker-compose.prod.yml" -p parksight)
-# Required when the deployed Compose file references PARKSIGHT_IMAGE.
-# The rollback override supplies the actual previous immutable image IDs.
 export PARKSIGHT_IMAGE="${IMAGE:-parksight-api:local}"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)-$$
 BACKUP_DIR="$ROOT/backups/$STAMP"
@@ -22,6 +20,11 @@ frontend_started=false
 candidate="$ROOT/.compose-candidate-$STAMP.yml"
 rollback_override="$ROOT/.rollback-$STAMP.yml"
 
+container_running() {
+  local container="$1"
+  [[ "$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null)" == true ]]
+}
+
 service_running() {
   local service="$1" id state
   id=$("${COMPOSE[@]}" ps -q "$service")
@@ -29,20 +32,31 @@ service_running() {
   state=$(docker inspect --format '{{.State.Status}}' "$id")
   [[ "$state" == running ]]
 }
-container_running() {
-  local container="$1"
-  [[ "$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null)" == true ]]
+
+# Allow API startup time after Docker recreates containers, including rollback.
+backend_healthy() {
+  local i
+  for i in $(seq 1 45); do
+    if container_running parksight-api-1 && container_running parksight-worker-1 && \
+       curl -fsS --max-time 3 http://127.0.0.1:8181/api/v1/health >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
 }
 
 rollback() {
-  local status=$? recovered=true
+  local status=$? recovered=true old_api old_worker
   trap - ERR
   set +e
   rm -f "$candidate"
   echo "Deployment failed (exit $status); attempting recovery" >&2
 
   if [[ "$frontend_started" == true ]]; then
-    rsync -a --delete --exclude='.well-known/' "$BACKUP_DIR/frontend/" "$PUBLIC/" || {
+    # Avoid chgrp/chown and directory mtime changes on root-owned Nginx directories.
+    rsync -rlt --omit-dir-times --delete --exclude='.well-known/' \
+      "$BACKUP_DIR/frontend/" "$PUBLIC/" || {
       echo 'CRITICAL: Frontend rollback failed' >&2
       recovered=false
     }
@@ -56,11 +70,8 @@ rollback() {
       echo 'CRITICAL: Previous container image IDs missing' >&2
       recovered=false
     else
-      local old_api old_worker
       old_api=$(cat "$BACKUP_DIR/previous-api-image")
       old_worker=$(cat "$BACKUP_DIR/previous-worker-image")
-      # Override each service independently with its exact previous immutable image ID.
-      # Keep the override beside the base Compose file so relative bind paths remain correct.
       printf 'services:\n  api:\n    image: "%s"\n  worker:\n    image: "%s"\n' \
         "$old_api" "$old_worker" > "$rollback_override"
       if ! docker compose \
@@ -69,16 +80,11 @@ rollback() {
           -p parksight up -d --no-deps --force-recreate api worker; then
         echo 'CRITICAL: Backend container restoration failed' >&2
         recovered=false
-      else
-        # Compose service state and API availability are checked after restoration.
-        if ! container_running parksight-api-1 || \
-           ! container_running parksight-worker-1 || \
+      elif ! backend_healthy || \
            [[ "$(docker inspect --format '{{.Image}}' parksight-api-1)" != "$old_api" ]] || \
-           [[ "$(docker inspect --format '{{.Image}}' parksight-worker-1)" != "$old_worker" ]] || \
-           ! curl -fsS --max-time 5 http://127.0.0.1:8181/api/v1/health >/dev/null; then
-          echo 'CRITICAL: Restored backend failed health verification' >&2
-          recovered=false
-        fi
+           [[ "$(docker inspect --format '{{.Image}}' parksight-worker-1)" != "$old_worker" ]]; then
+        echo 'CRITICAL: Restored backend failed health/image verification' >&2
+        recovered=false
       fi
     fi
   fi
@@ -110,12 +116,10 @@ if [[ "$BACKEND" == true ]]; then
     -f "$candidate" -p parksight config --quiet
   rm -f "$candidate"
 
-  # Dump must succeed (pipefail) and pass gzip integrity check before service changes.
   "${COMPOSE[@]}" exec -T db pg_dump -U parksight -d parksight | gzip > "$BACKUP_DIR/parksight.sql.gz"
   test -s "$BACKUP_DIR/parksight.sql.gz"
   gzip -t "$BACKUP_DIR/parksight.sql.gz"
   docker pull "$IMAGE"
-  # Resolve the immutable image ID of the release being deployed.
   expected_image_id=$(docker image inspect "$IMAGE" --format '{{.Id}}')
   test -n "$expected_image_id"
 
@@ -125,21 +129,9 @@ if [[ "$BACKEND" == true ]]; then
   "${COMPOSE[@]}" config --quiet
   "${COMPOSE[@]}" up -d --no-deps api worker
 
-  ready=false
-  for i in $(seq 1 45); do
-    if service_running api && service_running worker && \
-       curl -fsS --max-time 3 http://127.0.0.1:8181/api/v1/health >/dev/null; then
-      ready=true
-      break
-    fi
-    sleep 2
-  done
-  [[ "$ready" == true ]] || { echo 'Backend health verification failed' >&2; false; }
-
-  # Confirm both services use the newly deployed image.
+  backend_healthy || { echo 'Backend health verification failed' >&2; false; }
   for service in parksight-api-1 parksight-worker-1; do
     actual_image_id=$(docker inspect "$service" --format '{{.Image}}')
-
     if [[ "$actual_image_id" != "$expected_image_id" ]]; then
       echo "Image verification failed for $service" >&2
       false
@@ -151,10 +143,13 @@ if [[ "$FRONTEND" == true ]]; then
   test -s "$RELEASE/dist/index.html"
   test -d "$PUBLIC"
   mkdir -p "$BACKUP_DIR/frontend"
-  rsync -a --exclude='.well-known/' "$PUBLIC/" "$BACKUP_DIR/frontend/"
-  # Direct rsync is non-atomic. Roll back on detected failure.
+  # -rlt preserves contents, symlinks and file timestamps without ownership/group changes.
+  # --omit-dir-times avoids updating mtimes on root-owned directories.
+  rsync -rlt --omit-dir-times --exclude='.well-known/' \
+    "$PUBLIC/" "$BACKUP_DIR/frontend/"
   frontend_started=true
-  rsync -a --delete --exclude='.well-known/' --chmod=Dg+rwx,Fg+rw "$RELEASE/dist/" "$PUBLIC/"
+  rsync -rlt --omit-dir-times --delete --exclude='.well-known/' \
+    "$RELEASE/dist/" "$PUBLIC/"
   test -s "$PUBLIC/index.html"
   curl -fsS --max-time 10 https://parksight.kwetu.co.uk/ >/dev/null
 fi
