@@ -49,7 +49,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: "sqlite+pysqlite:///:memory:"
-          JWT_SECRET_KEY: "ci-only-placeholder-secret-not-for-production"
+          JWT_SECRET_KEY: "parksight-ci-testing-only-0123456789abcdef0123456789abcdef0123456789abcdef"
         run: python -m pytest -q
       # - name: Test
       #   working-directory: backend
