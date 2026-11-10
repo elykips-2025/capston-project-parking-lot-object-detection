@@ -218,6 +218,24 @@ ParkSight AI uses YOLO for vehicle detection and a MobileNetV3-based model for p
 
 ChatGPT was used as an engineering assistant for task decomposition, code-review suggestions, troubleshooting and documentation. Suggested changes were subject to developer review and manual verification. See [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md#ai-tooling-used-during-development) for the fuller disclosure and responsible-use considerations.
 
+## References and Technical Resources
+
+The following references informed the technology selection, architecture, implementation and evaluation considerations for ParkSight AI.
+
+1. Jocher, G., & Qiu, J. (2024). *Ultralytics YOLO11* [Computer software]. https://github.com/ultralytics/ultralytics
+
+2. Howard, A., et al. (2019). Searching for MobileNetV3. *Proceedings of the IEEE/CVF International Conference on Computer Vision*, 1314–1324. https://openaccess.thecvf.com/content_ICCV_2019/html/Howard_Searching_for_MobileNetV3_ICCV_2019_paper.html
+
+3. FastAPI. (n.d.). *FastAPI documentation*. https://fastapi.tiangolo.com/
+
+4. Docker Inc. (n.d.). *Docker Compose documentation*. https://docs.docker.com/compose/
+
+5. GitHub. (n.d.). *GitHub Actions documentation*. https://docs.github.com/en/actions
+
+6. National Institute of Standards and Technology. (2023). *Artificial Intelligence Risk Management Framework (AI RMF 1.0)*. https://www.nist.gov/itl/ai-risk-management-framework
+
+For detailed implementation decisions, testing evidence and limitations, see [Design, Architecture and Testing](DESIGN_AND_TESTING.md).
+
 ## Final submission checklist
 
 - [ ] Source repository contains the final documented code.
