@@ -47,7 +47,13 @@ jobs:
           pip install -r backend/requirements.txt -r backend/requirements-inference.txt pytest
       - name: Test
         working-directory: backend
+        env:
+          DATABASE_URL: "sqlite+pysqlite:///:memory:"
+          JWT_SECRET_KEY: "ci-only-placeholder-secret-not-for-production"
         run: python -m pytest -q
+      # - name: Test
+      #   working-directory: backend
+      #   run: python -m pytest -q
   frontend-build:
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true'
