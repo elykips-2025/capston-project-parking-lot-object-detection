@@ -75,6 +75,15 @@ jobs:
             -d parksight \
             -v ON_ERROR_STOP=1 \
             -c "CREATE DATABASE parksight_test OWNER parksight;"
+            
+      - name: Migrate integration-test database
+        working-directory: backend
+        env:
+          DATABASE_URL: "postgresql+psycopg://parksight:parksight_ci_password@localhost:5432/parksight_test"
+          JWT_SECRET_KEY: "parksight-ci-testing-only-0123456789abcdef0123456789abcdef0123456789abcdef"
+        run: |
+          python -m alembic upgrade head
+          python -m alembic current
 
       - name: Test
         working-directory: backend
