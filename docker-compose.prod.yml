@@ -19,15 +19,16 @@ services:
       - internal
 
   api:
-    image: parksight-api:local
+    image: ${PARKSIGHT_IMAGE:?Set PARKSIGHT_IMAGE}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+psycopg://parksight:${PARKSIGHT_DB_PASSWORD}@db:5432/parksight
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
     ports:
-      - "127.0.0.1:8100:8000"
+      - "127.0.0.1:8181:8000"
     volumes:
       - ./backend/storage:/app/storage
+      - ./backend/yolo11n.pt:/app/yolo11n.pt:ro
       - ./backend/runs/occupancy/mobilenetv3_pilot/best.pt:/app/runs/occupancy/mobilenetv3_pilot/best.pt:ro
       - ./backend/datasets/video-mapping/reference-frame.jpg:/app/datasets/video-mapping/reference-frame.jpg:ro
     depends_on:
@@ -37,7 +38,7 @@ services:
       - internal
 
   worker:
-    image: parksight-api:local
+    image: ${PARKSIGHT_IMAGE:?Set PARKSIGHT_IMAGE}
     restart: unless-stopped
     command:
       - python
@@ -51,6 +52,7 @@ services:
       OMP_NUM_THREADS: "4"
     volumes:
       - ./backend/storage:/app/storage
+      - ./backend/yolo11n.pt:/app/yolo11n.pt:ro
       - ./backend/runs/occupancy/mobilenetv3_pilot/best.pt:/app/runs/occupancy/mobilenetv3_pilot/best.pt:ro
       - ./backend/datasets/video-mapping/reference-frame.jpg:/app/datasets/video-mapping/reference-frame.jpg:ro
     depends_on:

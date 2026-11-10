@@ -1,0 +1,143 @@
+name: ParkSight CI and selective production deployment
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+concurrency:
+  group: parksight-production
+  cancel-in-progress: false
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            infra:
+              - 'docker-compose.prod.yml'
+              - 'deploy/**'
+              - '.github/workflows/ci-cd.yml'
+  backend-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-inference.txt pytest
+      - name: Test
+        working-directory: backend
+        run: python -m pytest -q
+  frontend-build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parksight-frontend
+          path: frontend/dist/
+          if-no-files-found: error
+  publish-backend:
+    needs: [changes, backend-test]
+    if: github.event_name == 'push' && needs.backend-test.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image
+        run: echo "value=ghcr.io/${GITHUB_REPOSITORY,,}/api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.value }}
+  deploy:
+    needs: [changes, backend-test, frontend-build, publish-backend]
+    if: >-
+      always() && github.event_name == 'push' &&
+      needs.changes.result == 'success' &&
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true') &&
+      (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped') &&
+      (needs.frontend-build.result == 'success' || needs.frontend-build.result == 'skipped') &&
+      (needs.publish-backend.result == 'success' || needs.publish-backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        if: needs.frontend-build.result == 'success'
+        with:
+          name: parksight-frontend
+          path: frontend/dist
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.PARKSIGHT_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PARKSIGHT_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload and deploy
+        env:
+          HOST: ${{ secrets.PARKSIGHT_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PARKSIGHT_SSH_PORT }}
+          USER: ${{ secrets.PARKSIGHT_SSH_USER }}
+          BACKEND: ${{ needs.changes.outputs.backend }}
+          FRONTEND: ${{ needs.changes.outputs.frontend }}
+          INFRA: ${{ needs.changes.outputs.infra }}
+          IMAGE: ${{ needs.publish-backend.outputs.image }}
+        run: |
+          set -euo pipefail
+          if [[ "$BACKEND" == true || "$INFRA" == true ]]; then BACKEND=true; else BACKEND=false; fi
+          if [[ "$FRONTEND" == true || "$INFRA" == true ]]; then FRONTEND=true; else FRONTEND=false; fi
+          RELEASE="/var/www/parksight/.release/${GITHUB_SHA}"
+          ssh -p "$SSH_PORT" "$USER@$HOST" "mkdir -p '$RELEASE'"
+          scp -P "$SSH_PORT" deploy/production.sh "$USER@$HOST:$RELEASE/production.sh"
+          if [[ "$BACKEND" == true ]]; then
+            scp -P "$SSH_PORT" docker-compose.prod.yml "$USER@$HOST:$RELEASE/docker-compose.prod.yml"
+          fi
+          if [[ "$FRONTEND" == true ]]; then
+            scp -P "$SSH_PORT" -r frontend/dist "$USER@$HOST:$RELEASE/dist"
+          fi
+          printf -v remote 'bash %q %q %q %q %q' "$RELEASE/production.sh" "$BACKEND" "$FRONTEND" "$IMAGE" "$RELEASE"
+          ssh -p "$SSH_PORT" "$USER@$HOST" "$remote"
