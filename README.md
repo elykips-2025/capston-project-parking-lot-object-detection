@@ -14,7 +14,7 @@ The current academic MVP demonstrates recorded-video analysis, not real-time par
 | Agile task board | [Outline Agile Board](https://outline.kwetu.co.uk/s/7f43578a-07c0-46f4-9fb6-37efb105fda6) |
 | Design and testing | [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) |
 | Sprint activity log | [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md) |
-| Recorded presentation | [ADD VIDEO URL BEFORE SUBMISSION](https://docs.google.com/videos/d/1EsycntHThsLhy-uujaViR47eDH2LVxh77eUNX-3Qbt8/play)|
+| Recorded presentation | [DEMO VIDEO](https://docs.google.com/videos/d/1EsycntHThsLhy-uujaViR47eDH2LVxh77eUNX-3Qbt8/play)|
 
 The GitHub account `quantic-grader` must have access to the repository. Verify that the Agile board and all submission links are accessible to assessors.
 
