@@ -11,6 +11,7 @@ The current academic MVP demonstrates recorded-video analysis, not real-time par
 |---|---|
 | Source code | [GitHub Repository](https://github.com/elykips-2025/capston-project-parking-lot-object-detection) |
 | Deployed application | [ParkSight AI](https://parksight.kwetu.co.uk) |
+| Test Credentials | Email:elkanarop@gmail.com, Password: Bl@ckb3rry_priv. |
 | Agile task board | [Outline Agile Board](https://outline.kwetu.co.uk/s/7f43578a-07c0-46f4-9fb6-37efb105fda6) |
 | Design and testing | [DESIGN_AND_TESTING.md](DESIGN_AND_TESTING.md) |
 | Sprint activity log | [SPRINT_ACTIVITY_LOG.md](SPRINT_ACTIVITY_LOG.md) |
